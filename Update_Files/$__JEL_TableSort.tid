@@ -133,4 +133,42 @@ document.addEventListener('click', function (e) {
         // console.log(error)
     }
 });
+// Add column hide/show toggles for all tables
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('table').forEach(function (table) {
+        var thead = table.querySelector('thead');
+        if (!thead) {
+            return;
+        }
+        var headers = Array.from(thead.querySelectorAll('th'));
+        if (!headers.length) {
+            return;
+        }
+        var details = document.createElement('details');
+        details.className = 'table-column-toggle';
+        var summary = document.createElement('summary');
+        summary.textContent = 'Columns';
+        details.appendChild(summary);
+        headers.forEach(function (th, index) {
+            var id = 'col-toggle-' + Math.random().toString(36).slice(2);
+            var label = document.createElement('label');
+            label.style.marginRight = '0.5em';
+            var checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = id;
+            checkbox.checked = true;
+            checkbox.addEventListener('change', function () {
+                table.querySelectorAll('tr').forEach(function (row) {
+                    if (row.children[index]) {
+                        row.children[index].style.display = checkbox.checked ? '' : 'none';
+                    }
+                });
+            });
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(' ' + th.textContent.trim()));
+            details.appendChild(label);
+        });
+        table.parentNode.insertBefore(details, table);
+    });
+});
 </script>

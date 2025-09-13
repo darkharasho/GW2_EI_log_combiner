@@ -23,8 +23,9 @@ Currently works with WVW and Detailed WVW logs. Partially working with PVElogs, 
  - Double click the `TopStats.exe` to run
  - Open the file `/Example_Output/Top_Stats_Index.html` in your browser of choice.
  - Drag and Drop the file `Drag_and_Drop_Log_Summary_for_2024yourdatatime.json` onto the opened `Top_Stats_Index.html` in your browser and click `import`
- - Open the 1. imported file link to view the summary
- - DM me with errors, suggestions and ideas. 
+- Open the 1. imported file link to view the summary
+- Use the collapsed **Columns** control above any table to hide or show individual columns
+- DM me with errors, suggestions and ideas.
  - Send example arcdps logs generating issues would be appreciated 
  
 **Optional**
