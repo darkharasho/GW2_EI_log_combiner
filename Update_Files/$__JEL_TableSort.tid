@@ -134,6 +134,14 @@ document.addEventListener('click', function (e) {
     }
 });
 // Add column hide/show toggles for all tables, even when dynamically added
+// Inject a stylesheet once for the hidden column class
+if (!document.getElementById('column-toggle-style')) {
+    var styleEl = document.createElement('style');
+    styleEl.id = 'column-toggle-style';
+    styleEl.textContent = '.column-hidden{display:none;}';
+    document.head.appendChild(styleEl);
+}
+
 function addColumnToggle(table) {
     if (table.dataset.colToggleInitialized) {
         return;
@@ -164,8 +172,9 @@ function addColumnToggle(table) {
         checkbox.checked = true;
         checkbox.addEventListener('change', function () {
             table.querySelectorAll('tr').forEach(function (row) {
-                if (row.children[index]) {
-                    row.children[index].style.display = checkbox.checked ? '' : 'none';
+                var cell = row.children[index];
+                if (cell) {
+                    cell.classList.toggle('column-hidden', !checkbox.checked);
                 }
             });
         });
