@@ -133,42 +133,76 @@ document.addEventListener('click', function (e) {
         // console.log(error)
     }
 });
-// Add column hide/show toggles for all tables
-document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('table').forEach(function (table) {
-        var thead = table.querySelector('thead');
-        if (!thead) {
-            return;
-        }
-        var headers = Array.from(thead.querySelectorAll('th'));
-        if (!headers.length) {
-            return;
-        }
-        var details = document.createElement('details');
-        details.className = 'table-column-toggle';
-        var summary = document.createElement('summary');
-        summary.textContent = 'Columns';
-        details.appendChild(summary);
-        headers.forEach(function (th, index) {
-            var id = 'col-toggle-' + Math.random().toString(36).slice(2);
-            var label = document.createElement('label');
-            label.style.marginRight = '0.5em';
-            var checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.id = id;
-            checkbox.checked = true;
-            checkbox.addEventListener('change', function () {
-                table.querySelectorAll('tr').forEach(function (row) {
-                    if (row.children[index]) {
-                        row.children[index].style.display = checkbox.checked ? '' : 'none';
-                    }
-                });
+// Add column hide/show toggles for all tables, even when dynamically added
+function addColumnToggle(table) {
+    if (table.dataset.colToggleInitialized) {
+        return;
+    }
+    var headers;
+    var thead = table.querySelector('thead');
+    if (thead) {
+        headers = Array.from(thead.querySelectorAll('th'));
+    } else {
+        var firstRow = table.querySelector('tr');
+        headers = firstRow ? Array.from(firstRow.children) : [];
+    }
+    if (!headers.length) {
+        return;
+    }
+    var details = document.createElement('details');
+    details.className = 'table-column-toggle';
+    var summary = document.createElement('summary');
+    summary.textContent = 'Columns';
+    details.appendChild(summary);
+    headers.forEach(function (th, index) {
+        var id = 'col-toggle-' + Math.random().toString(36).slice(2);
+        var label = document.createElement('label');
+        label.style.marginRight = '0.5em';
+        var checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = id;
+        checkbox.checked = true;
+        checkbox.addEventListener('change', function () {
+            table.querySelectorAll('tr').forEach(function (row) {
+                if (row.children[index]) {
+                    row.children[index].style.display = checkbox.checked ? '' : 'none';
+                }
             });
-            label.appendChild(checkbox);
-            label.appendChild(document.createTextNode(' ' + th.textContent.trim()));
-            details.appendChild(label);
         });
-        table.parentNode.insertBefore(details, table);
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(' ' + th.textContent.trim()));
+        details.appendChild(label);
+    });
+    table.parentNode.insertBefore(details, table);
+    table.dataset.colToggleInitialized = '1';
+}
+
+function initColumnToggles(root) {
+    (root || document).querySelectorAll('table').forEach(addColumnToggle);
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () {
+        initColumnToggles();
+    });
+} else {
+    initColumnToggles();
+}
+
+// Watch for tables added later
+var observer = new MutationObserver(function (mutations) {
+    mutations.forEach(function (m) {
+        m.addedNodes.forEach(function (node) {
+            if (node.nodeType === 1) {
+                if (node.matches('table')) {
+                    addColumnToggle(node);
+                }
+                else if (node.querySelectorAll) {
+                    node.querySelectorAll('table').forEach(addColumnToggle);
+                }
+            }
+        });
     });
 });
+observer.observe(document.body, { childList: true, subtree: true });
 </script>
