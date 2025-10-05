@@ -709,21 +709,21 @@ def build_category_summary_table(top_stats: dict, category_stats: dict, enable_h
 	        rows.append(style_info)
 	        rows.append("<div class='col-toggle'>")
 	        hide_controls = [
-	                "<details class=\"col-dropdown\">",
-	                "  <summary class=\"col-dropdown__summary\">Hide Columns</summary>",
-	                "  <div class=\"col-dropdown__menu\">",
-                        "    <div class=\"col-dropdown__actions\">",
-                        "      <button type=\"button\" class=\"col-select-all\" onclick=\"(function(btn){const wrap=btn.closest('div'); if(!wrap) return; wrap.parentElement.querySelectorAll('input[type\\u003d\"checkbox\"]').forEach(function(box){box.checked=true;});})(this);\">Select all</button>",
-                        "      <button type=\"button\" class=\"col-clear-all\" onclick=\"(function(btn){const wrap=btn.closest('div'); if(!wrap) return; wrap.parentElement.querySelectorAll('input[type\\u003d\"checkbox\"]').forEach(function(box){box.checked=false;});})(this);\">Clear all</button>",
-	                "    </div>",
-	                "    <div class=\"col-controls\">",
+	        "<details class=\"col-dropdown\">",
+	        "<summary class=\"col-dropdown__summary\">Hide Columns</summary>",
+	        "<div class=\"col-dropdown__menu\">",
+	        "<div class=\"col-dropdown__actions\">",
+	        "<button type=\"button\" class=\"col-select-all\" onclick=\"(function(btn){const menu=btn.closest('.col-dropdown__menu');if(!menu)return;menu.querySelectorAll('input[type=\\\"checkbox\\\"]').forEach(function(box){if(!box.checked){box.checked=true;box.dispatchEvent(new Event('change',{bubbles:true}));}});})(this);\">Select all</button>",
+	        "<button type=\"button\" class=\"col-clear-all\" onclick=\"(function(btn){const menu=btn.closest('.col-dropdown__menu');if(!menu)return;menu.querySelectorAll('input[type=\\\"checkbox\\\"]').forEach(function(box){if(box.checked){box.checked=false;box.dispatchEvent(new Event('change',{bubbles:true}));}});})(this);\">Clear all</button>",
+	        "</div>",
+	        "<div class=\"col-controls\">",
 	        ]
 	        for i, stat in enumerate(column_control_list):
-	                hide_controls.append(f"      <label><input type='checkbox' id='toggle-col{i+5}' checked> {stat}</label>")
+	                hide_controls.append(f"<label><input type='checkbox' id='toggle-col{i+5}' checked> {stat}</label>")
 	        hide_controls.extend([
-	                "    </div>",
-	                "  </div>",
-	                "</details>",
+	        "</div>",
+	        "</div>",
+	        "</details>",
 	        ])
 	        rows.append("\n".join(hide_controls))
 	rows.append('<div style="overflow-y: auto; width: 100%; overflow-x:auto;">\n\n')
