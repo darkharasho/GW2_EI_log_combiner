@@ -397,4 +397,3 @@ if __name__ == '__main__':
 			print("No support professions found")
 		if not webhook_url:
 			print("No webhook URL found")
-	input("Press Enter to exit...")
