@@ -605,127 +605,143 @@ def build_category_summary_table(top_stats: dict, category_stats: dict, enable_h
 	                        num_columns += 1
 
 
-	        style_info = "<style>\n/* === Column visibility rules === */\n"
-	        for i in range(4, num_columns):
-	                if i == num_columns - 1:
-	                        style_info += f".col-toggle:has(#toggle-col{i+1}:not(:checked)) tr > *:nth-child({i+1}) {{\n  display: none;\n}}"
-	                else:
-	                        style_info += f".col-toggle:has(#toggle-col{i+1}:not(:checked)) tr > *:nth-child({i+1}),\n"
-	        style_info += (
-	                ".col-toggle {\n"
-	                "  position: relative;\n"
-	                "  z-index: 10;\n"
-	                "}\n\n"
-                        ".col-dropdown {\n"
-                        "  position: relative;\n"
-                        "  display: inline-block;\n"
-                        "  margin-bottom: 0.4em;\n"
-	                "  font-size: 0.9em;\n"
-	                "  color: #eee;\n"
-	                "}\n\n"
-	                ".col-dropdown__summary {\n"
-	                "  list-style: none;\n"
-	                "  cursor: pointer;\n"
-	                "  background: #2c3034;\n"
-	                "  padding: 0.45em 0.9em;\n"
-	                "  border-radius: 0.5em;\n"
-	                "  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);\n"
-	                "  transition: background 0.2s ease;\n"
-	                "  user-select: none;\n"
-	                "  display: inline-flex;\n"
-	                "  align-items: center;\n"
-	                "  gap: 0.5em;\n"
-	                "}\n\n"
-	                ".col-dropdown__summary::-webkit-details-marker {\n"
-	                "  display: none;\n"
-	                "}\n\n"
-	                ".col-dropdown__summary::after {\n"
-	                "  content: \"▾\";\n"
-	                "  font-size: 0.8em;\n"
-	                "  opacity: 0.8;\n"
-	                "}\n\n"
-	                ".col-dropdown[open] .col-dropdown__summary {\n"
-	                "  background: #363c41;\n"
-	                "}\n\n"
-	                ".col-dropdown[open] .col-dropdown__summary::after {\n"
-	                "  content: \"▴\";\n"
-	                "}\n\n"
-                        ".col-dropdown__menu {\n"
-                        "  position: absolute;\n"
-                        "  top: calc(100% + 0.35em);\n"
-                        "  right: 0;\n"
-                        "  background: #1f2326;\n"
-                        "  border: 1px solid #444;\n"
-                        "  border-radius: 0.6em;\n"
-                        "  padding: 0.6em;\n"
-                        "  min-width: 24em;\n"
-                        "  display: grid;\n"
-                        "  grid-template-columns: repeat(auto-fit, minmax(11em, 1fr));\n"
-                        "  gap: 0.4em;\n"
-                        "  box-shadow: 0 0.5em 1.5em rgba(0, 0, 0, 0.35);\n"
-                        "}\n\n"
-                        ".col-dropdown__actions {\n"
-                        "  grid-column: 1 / -1;\n"
-                        "  display: flex;\n"
-                        "  justify-content: flex-end;\n"
-                        "  gap: 0.5em;\n"
-                        "}\n\n"
-                        ".col-dropdown__actions button {\n"
-                        "  background: #2c3034;\n"
-                        "  color: #eee;\n"
-                        "  border: 1px solid #555;\n"
-                        "  border-radius: 0.4em;\n"
-                        "  padding: 0.25em 0.8em;\n"
-                        "  cursor: pointer;\n"
-                        "  transition: background 0.2s ease;\n"
-                        "}\n\n"
-                        ".col-dropdown__actions button:hover,\n"
-                        ".col-dropdown__actions button:focus-visible {\n"
-                        "  background: #3b4045;\n"
-                        "  outline: none;\n"
-                        "}\n\n"
-                        ".col-controls {\n"
-                        "  display: contents;\n"
-                        "}\n\n"
-                        ".col-controls label {\n"
-                        "  display: flex;\n"
-                        "  align-items: center;\n"
-                        "  gap: 0.35em;\n"
-                        "  background: #2c3034;\n"
-                        "  padding: 0.35em 0.5em;\n"
-                        "  border-radius: 0.4em;\n"
-                        "  cursor: pointer;\n"
-                        "  transition: background 0.2s ease;\n"
-                        "  white-space: normal;\n"
-                        "}\n\n"
-	                ".col-controls label:hover {\n"
-	                "  background: #3a3f44;\n"
-	                "}\n\n"
-	                ".col-controls input[type=\"checkbox\"] {\n"
-	                "  accent-color: #6cf;\n"
-	                "}\n"
-	                "</style>\n"
-	        )
-	        rows.append(style_info)
-	        rows.append("<div class='col-toggle'>")
-	        hide_controls = [
-	        "<details class=\"col-dropdown\">",
-	        "<summary class=\"col-dropdown__summary\">Hide Columns</summary>",
-	        "<div class=\"col-dropdown__menu\">",
-	        "<div class=\"col-dropdown__actions\">",
-	        "<button type=\"button\" class=\"col-select-all\" onclick=\"(function(btn){const menu=btn.closest('.col-dropdown__menu');if(!menu)return;menu.querySelectorAll('input[type=\\\"checkbox\\\"]').forEach(function(box){if(!box.checked){box.checked=true;box.dispatchEvent(new Event('change',{bubbles:true}));}});})(this);\">Select all</button>",
-	        "<button type=\"button\" class=\"col-clear-all\" onclick=\"(function(btn){const menu=btn.closest('.col-dropdown__menu');if(!menu)return;menu.querySelectorAll('input[type=\\\"checkbox\\\"]').forEach(function(box){if(box.checked){box.checked=false;box.dispatchEvent(new Event('change',{bubbles:true}));}});})(this);\">Clear all</button>",
-	        "</div>",
-	        "<div class=\"col-controls\">",
-	        ]
-	        for i, stat in enumerate(column_control_list):
-	                hide_controls.append(f"<label><input type='checkbox' id='toggle-col{i+5}' checked> {stat}</label>")
-	        hide_controls.extend([
-	        "</div>",
-	        "</div>",
-	        "</details>",
-	        ])
-	        rows.append("\n".join(hide_controls))
+	                style_lines = [
+	                        "<$rawhtml>",
+	                        "<style>",
+	                        "/* === Column visibility rules === */",
+	                ]
+	                for i in range(4, num_columns):
+	                        if i == num_columns - 1:
+	                                style_lines.append(
+	                                        f".col-toggle:has(#toggle-col{i+1}:not(:checked)) tr > *:nth-child({i+1}) {{\n  display: none;\n}}"
+	                                )
+	                        else:
+	                                style_lines.append(
+	                                        f".col-toggle:has(#toggle-col{i+1}:not(:checked)) tr > *:nth-child({i+1}),"
+	                                )
+	                style_lines.extend([
+	                        ".col-toggle {",
+	                        "  position: relative;",
+	                        "  z-index: 10;",
+	                        "}",
+	                        ".col-dropdown {",
+	                        "  position: relative;",
+	                        "  display: inline-block;",
+	                        "  margin-bottom: 0.4em;",
+	                        "  font-size: 0.9em;",
+	                        "  color: #eee;",
+	                        "}",
+	                        ".col-dropdown__summary {",
+	                        "  list-style: none;",
+	                        "  cursor: pointer;",
+	                        "  background: #2c3034;",
+	                        "  padding: 0.45em 0.9em;",
+	                        "  border-radius: 0.5em;",
+	                        "  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);",
+	                        "  transition: background 0.2s ease;",
+	                        "  user-select: none;",
+	                        "  display: inline-flex;",
+	                        "  align-items: center;",
+	                        "  gap: 0.5em;",
+	                        "}",
+	                        ".col-dropdown__summary::-webkit-details-marker {",
+	                        "  display: none;",
+	                        "}",
+	                        ".col-dropdown__summary::after {",
+	                        "  content: \"▾\";",
+	                        "  font-size: 0.8em;",
+	                        "  opacity: 0.8;",
+	                        "}",
+	                        ".col-dropdown[open] .col-dropdown__summary {",
+	                        "  background: #363c41;",
+	                        "}",
+	                        ".col-dropdown[open] .col-dropdown__summary::after {",
+	                        "  content: \"▴\";",
+	                        "}",
+	                        ".col-dropdown__menu {",
+	                        "  position: absolute;",
+	                        "  top: calc(100% + 0.35em);",
+	                        "  right: 0;",
+	                        "  background: #1f2326;",
+	                        "  border: 1px solid #444;",
+	                        "  border-radius: 0.6em;",
+	                        "  padding: 0.6em;",
+	                        "  min-width: clamp(24em, 2vw + 24em, 36em);",
+	                        "  display: flex;",
+	                        "  flex-direction: column;",
+	                        "  gap: 0.6em;",
+	                        "  box-shadow: 0 0.5em 1.5em rgba(0, 0, 0, 0.35);",
+	                        "}",
+	                        ".col-dropdown__actions {",
+	                        "  display: flex;",
+	                        "  justify-content: flex-end;",
+	                        "  gap: 0.5em;",
+	                        "}",
+	                        ".col-dropdown__actions button {",
+	                        "  background: #2c3034;",
+	                        "  color: #eee;",
+	                        "  border: 1px solid #555;",
+	                        "  border-radius: 0.4em;",
+	                        "  padding: 0.25em 0.8em;",
+	                        "  cursor: pointer;",
+	                        "  transition: background 0.2s ease;",
+	                        "}",
+	                        ".col-dropdown__actions button:hover,",
+	                        ".col-dropdown__actions button:focus-visible {",
+	                        "  background: #3b4045;",
+	                        "  outline: none;",
+	                        "}",
+	                        ".col-controls {",
+	                        "  display: grid;",
+	                        "  grid-template-columns: repeat(auto-fit, minmax(11em, 1fr));",
+	                        "  gap: 0.45em;",
+	                        "}",
+	                        ".col-controls label {",
+	                        "  display: flex;",
+	                        "  align-items: center;",
+	                        "  gap: 0.35em;",
+	                        "  background: #2c3034;",
+	                        "  padding: 0.35em 0.5em;",
+	                        "  border-radius: 0.4em;",
+	                        "  cursor: pointer;",
+	                        "  transition: background 0.2s ease;",
+	                        "  white-space: normal;",
+	                        "}",
+	                        ".col-controls label:hover {",
+	                        "  background: #3a3f44;",
+	                        "}",
+	                        ".col-controls input[type=\"checkbox\"] {",
+	                        "  accent-color: #6cf;",
+	                        "}",
+	                        "</style>",
+	                        "</$rawhtml>",
+	                ])
+	                script_block = (
+	                        "<$rawhtml><script>(function(){if(window.colDropdownInit){return;}window.colDropdownInit=true;function getTableRows(dropdown){var wrapper=dropdown.closest('.col-toggle');if(!wrapper){return [];}var tableArea=wrapper.querySelector('.col-toggletables');var scope=tableArea||wrapper;return Array.prototype.slice.call(scope.querySelectorAll('tr'));}function updateColumnVisibility(dropdown,columnIndex,isVisible){if(!columnIndex){return;}getTableRows(dropdown).forEach(function(row){var cell=row.children[columnIndex-1];if(cell){cell.style.display=isVisible?'':'none';}});}function syncDropdown(dropdown){dropdown.querySelectorAll('input[type=\"checkbox\"][data-col-index]').forEach(function(box){var index=parseInt(box.getAttribute('data-col-index'),10);if(!isNaN(index)){updateColumnVisibility(dropdown,index,box.checked);}});}function handleCheckboxChange(event){var checkbox=event.target;if(!checkbox.matches('.col-dropdown input[type=\"checkbox\"][data-col-index]')){return;}var dropdown=checkbox.closest('.col-dropdown');if(!dropdown){return;}var index=parseInt(checkbox.getAttribute('data-col-index'),10);if(isNaN(index)){return;}updateColumnVisibility(dropdown,index,checkbox.checked);}function handleActionClick(event){var button=event.target.closest('[data-col-action]');if(!button){return;}event.preventDefault();var dropdown=button.closest('.col-dropdown');if(!dropdown){return;}var shouldCheck=button.getAttribute('data-col-action')==='select';dropdown.querySelectorAll('input[type=\"checkbox\"][data-col-index]').forEach(function(box){if(box.checked!==shouldCheck){box.checked=shouldCheck;box.dispatchEvent(new Event('change',{bubbles:true}));}});}function initExisting(){document.querySelectorAll('.col-dropdown').forEach(syncDropdown);}document.addEventListener('change',handleCheckboxChange);document.addEventListener('click',handleActionClick);if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',initExisting);}else{initExisting();}new MutationObserver(function(mutations){mutations.forEach(function(mutation){mutation.addedNodes.forEach(function(node){if(!(node instanceof Element)){return;}if(node.matches && node.matches('.col-dropdown')){syncDropdown(node);}if(node.querySelectorAll){node.querySelectorAll('.col-dropdown').forEach(syncDropdown);}});});}).observe(document.documentElement,{childList:true,subtree:true});})();</script></$rawhtml>"
+	                )
+	                rows.append("\n".join(style_lines))
+	                rows.append(script_block)
+	                rows.append("<div class='col-toggle'>")
+	                hide_controls = [
+	                "<details class=\"col-dropdown\">",
+	                "<summary class=\"col-dropdown__summary\">Hide Columns</summary>",
+	                "<div class=\"col-dropdown__menu\">",
+	                "<div class=\"col-dropdown__actions\">",
+	                "<button type=\"button\" class=\"col-select-all\" data-col-action=\"select\">Select all</button>",
+	                "<button type=\"button\" class=\"col-clear-all\" data-col-action=\"clear\">Clear all</button>",
+	                "</div>",
+	                "<div class=\"col-controls\">",
+	                ]
+	                for i, stat in enumerate(column_control_list):
+	                        hide_controls.append(
+	                                f"<label><input type='checkbox' id='toggle-col{i+5}' data-col-index='{i+5}' checked> {stat}</label>"
+	                        )
+	                hide_controls.extend([
+	                "</div>",
+	                "</div>",
+	                "</details>",
+	                ])
+	                rows.append("\n".join(hide_controls))
 	rows.append('<div style="overflow-y: auto; width: 100%; overflow-x:auto;">\n\n')
 	for toggle in ["Total", "Stat/1s", "Stat/60s"]:
 		rows.append(f'<$reveal stateTitle=<<currentTiddler>> stateField="category_radio" type="match" text="{toggle}" animate="yes">\n')
