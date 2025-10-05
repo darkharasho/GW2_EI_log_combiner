@@ -5007,7 +5007,7 @@ def send_profession_boon_support_embed(webhook_url: str, profession: str, prof_i
     """
     if len(data) <= 1:
         return
-    if not webhook_url:
+    if webhook_url == "false":
         return
     else:
         print("WebHook URL: ", webhook_url)		
