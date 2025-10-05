@@ -185,10 +185,10 @@ if __name__ == '__main__':
 	build_shared_damage_modifier_summary(top_stats, damage_mod_data, "Shared Damage Mods", tid_date_time)
 		
 	defense_stats = config_output.defenses_table
-	build_category_summary_table(top_stats, defense_stats, False, "Defenses", tid_date_time)
+	build_category_summary_table(top_stats, defense_stats, enable_hide_columns, "Defenses", tid_date_time)
 
 	support_stats = config_output.support_table
-	build_category_summary_table(top_stats, support_stats, False, "Support", tid_date_time)
+	build_category_summary_table(top_stats, support_stats, enable_hide_columns, "Support", tid_date_time)
 
 	offensive_stats = config_output.offensive_table
 	build_category_summary_table(top_stats, offensive_stats, enable_hide_columns, "Offensive", tid_date_time)

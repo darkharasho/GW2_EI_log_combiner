@@ -733,12 +733,42 @@ def build_category_summary_table(top_stats: dict, category_stats: dict, enable_h
 			hide_controls += f"\n      <label><input type='checkbox' id='toggle-col{i+5}' checked> {stat}</label>"
 		hide_controls += "\n    </div>\n  </div>\n</details>\n"
 		script_info = """
-<script>
+<script type="text/javascript">
 (function() {
   if (window.__colDropdownInit) {
     return;
   }
   window.__colDropdownInit = true;
+
+  function updateColumnVisibility(dropdown, columnIndex, isVisible) {
+    const wrapper = dropdown.closest('.col-toggle');
+    if (!wrapper) {
+      return;
+    }
+    wrapper.querySelectorAll('tr').forEach(function(row) {
+      const cell = row.children[columnIndex - 1];
+      if (cell) {
+        cell.style.display = isVisible ? '' : 'none';
+      }
+    });
+  }
+
+  document.addEventListener('change', function(event) {
+    if (!event.target.matches('.col-dropdown input[type="checkbox"]')) {
+      return;
+    }
+    const checkbox = event.target;
+    const dropdown = checkbox.closest('.col-dropdown');
+    if (!dropdown) {
+      return;
+    }
+    const columnIndex = parseInt(checkbox.id.replace('toggle-col', ''), 10);
+    if (Number.isNaN(columnIndex)) {
+      return;
+    }
+    updateColumnVisibility(dropdown, columnIndex, checkbox.checked);
+  });
+
   document.addEventListener('click', function(event) {
     const selectAllBtn = event.target.closest('.col-select-all');
     const clearAllBtn = event.target.closest('.col-clear-all');
@@ -752,8 +782,10 @@ def build_category_summary_table(top_stats: dict, category_stats: dict, enable_h
     }
     const shouldCheck = Boolean(selectAllBtn);
     dropdown.querySelectorAll('input[type="checkbox"]').forEach(function(box) {
-      box.checked = shouldCheck;
-      box.dispatchEvent(new Event('change', { bubbles: true }));
+      if (box.checked !== shouldCheck) {
+        box.checked = shouldCheck;
+        box.dispatchEvent(new Event('change', { bubbles: true }));
+      }
     });
   });
 })();
