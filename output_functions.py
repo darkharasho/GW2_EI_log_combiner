@@ -567,232 +567,236 @@ def build_category_summary_table(top_stats: dict, category_stats: dict, enable_h
 	
 
 	if enable_hide_columns:
-		column_control_list = []
-		num_columns = 4
-		for stat in category_stats:
-			#<label><input type="checkbox" id="toggle-col5" checked> {{totalDmg}}</label> 
-			if stat =="damage":
-				column_control_list.append("{{totalDmg}}")
-				num_columns += 1
-			elif stat == "connectedDamageCount":
-				column_control_list.append("{{connectedDamageCount}}")
-				num_columns += 1
-			elif stat == "connectedDirectDamageCount":
-				column_control_list.append("{{connectedDirectDamageCount}}")
-				column_control_list.append("{{connectedIndirectDamageCount}}")
-				num_columns += 2
-			elif stat == "boonStripDownContribution":
-				column_control_list.append("{{boonStrips}}{{downed}}")
-				num_columns += 1
-			elif stat == "boonStripDownContributionTime":
-				column_control_list.append("{{boonStripsTime}}{{downed}}")
-				num_columns += 1
-			elif stat in defense_hits:
-				column_control_list.append("{{"+f"{defense_hits[stat]}"+"}}"+"[img width=16 [Hits|hits.png]]")
-				num_columns += 1
-			elif stat == "appliedCrowdControlDownContribution":
-				column_control_list.append("{{appliedCrowdControl}}{{downed}}")
-				num_columns += 1
-			elif stat == "appliedCrowdControlDurationDownContribution":
-				column_control_list.append("{{appliedCrowdControlDuration}}{{downed}}")
-				num_columns += 1
-			elif stat == "damageBarrier":
-				column_control_list.append("{{"+stat+"}}")
-				column_control_list.append("{{"+stat+"}} %")
-				num_columns += 2
-			else:
-				column_control_list.append("{{"+stat+"}}")
-				num_columns += 1
-		
+	        column_control_list = []
+	        num_columns = 4
+	        for stat in category_stats:
+	                #<label><input type="checkbox" id="toggle-col5" checked> {{totalDmg}}</label>
+	                if stat =="damage":
+	                        column_control_list.append("{{totalDmg}}")
+	                        num_columns += 1
+	                elif stat == "connectedDamageCount":
+	                        column_control_list.append("{{connectedDamageCount}}")
+	                        num_columns += 1
+	                elif stat == "connectedDirectDamageCount":
+	                        column_control_list.append("{{connectedDirectDamageCount}}")
+	                        column_control_list.append("{{connectedIndirectDamageCount}}")
+	                        num_columns += 2
+	                elif stat == "boonStripDownContribution":
+	                        column_control_list.append("{{boonStrips}}{{downed}}")
+	                        num_columns += 1
+	                elif stat == "boonStripDownContributionTime":
+	                        column_control_list.append("{{boonStripsTime}}{{downed}}")
+	                        num_columns += 1
+	                elif stat in defense_hits:
+	                        column_control_list.append("{{"+f"{defense_hits[stat]}"+"}}"+"[img width=16 [Hits|hits.png]]")
+	                        num_columns += 1
+	                elif stat == "appliedCrowdControlDownContribution":
+	                        column_control_list.append("{{appliedCrowdControl}}{{downed}}")
+	                        num_columns += 1
+	                elif stat == "appliedCrowdControlDurationDownContribution":
+	                        column_control_list.append("{{appliedCrowdControlDuration}}{{downed}}")
+	                        num_columns += 1
+	                elif stat == "damageBarrier":
+	                        column_control_list.append("{{"+stat+"}}")
+	                        column_control_list.append("{{"+stat+"}} %")
+	                        num_columns += 2
+	                else:
+	                        column_control_list.append("{{"+stat+"}}")
+	                        num_columns += 1
 
-		style_info = "<style>\n/* === Column visibility rules === */\n"
-		for i in range(4, num_columns):
-			if i == num_columns - 1:
-				style_info += f".col-toggle:has(#toggle-col{i+1}:not(:checked)) tr > *:nth-child({i+1}) {{\n  display: none;\n}}"
-			else:
-				style_info += f".col-toggle:has(#toggle-col{i+1}:not(:checked)) tr > *:nth-child({i+1}),\n"
-		style_info += """
-.col-toggle {
-  position: relative;
-  z-index: 10;
-}
 
-.col-dropdown {
-  position: relative;
-  display: inline-block;
-  margin-bottom: 0.8em;
-  font-size: 0.9em;
-  color: #eee;
-}
-
-.col-dropdown__summary {
-  list-style: none;
-  cursor: pointer;
-  background: #2c3034;
-  padding: 0.45em 0.9em;
-  border-radius: 0.5em;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-  transition: background 0.2s ease;
-  user-select: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5em;
-}
-
-.col-dropdown__summary::-webkit-details-marker {
-  display: none;
-}
-
-.col-dropdown__summary::after {
-  content: "▾";
-  font-size: 0.8em;
-  opacity: 0.8;
-}
-
-.col-dropdown[open] .col-dropdown__summary {
-  background: #363c41;
-}
-
-.col-dropdown[open] .col-dropdown__summary::after {
-  content: "▴";
-}
-
-.col-dropdown__menu {
-  position: absolute;
-  top: calc(100% + 0.35em);
-  right: 0;
-  background: #1f2326;
-  border: 1px solid #444;
-  border-radius: 0.6em;
-  padding: 0.75em;
-  min-width: 18em;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6em;
-  box-shadow: 0 0.5em 1.5em rgba(0, 0, 0, 0.35);
-}
-
-.col-dropdown__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5em;
-}
-
-.col-dropdown__actions button {
-  background: #2c3034;
-  color: #eee;
-  border: 1px solid #555;
-  border-radius: 0.4em;
-  padding: 0.25em 0.8em;
-  cursor: pointer;
-  font-size: 0.85em;
-  transition: background 0.2s ease;
-}
-
-.col-dropdown__actions button:hover,
-.col-dropdown__actions button:focus-visible {
-  background: #3a3f44;
-}
-
-.col-controls {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12em, 1fr));
-  gap: 0.4em 0.6em;
-}
-
-.col-controls label {
-  display: flex;
-  align-items: center;
-  gap: 0.35em;
-  background: #2c3034;
-  padding: 0.35em 0.6em;
-  border-radius: 0.4em;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.col-controls label:hover {
-  background: #3a3f44;
-}
-
-.col-controls input[type="checkbox"] {
-  accent-color: #6cf;
-}
-</style>
-<div class='col-toggle'>"""
-		hide_controls = """
-<details class="col-dropdown">
-  <summary class="col-dropdown__summary">Hide Columns</summary>
-  <div class="col-dropdown__menu">
-    <div class="col-dropdown__actions">
-      <button type="button" class="col-select-all">Select all</button>
-      <button type="button" class="col-clear-all">Clear all</button>
-    </div>
-    <div class="col-controls">"""
-		for i, stat in enumerate(column_control_list):
-			hide_controls += f"\n      <label><input type='checkbox' id='toggle-col{i+5}' checked> {stat}</label>"
-		hide_controls += "\n    </div>\n  </div>\n</details>\n"
-		script_info = """
-<script type="text/javascript">
-(function() {
-  if (window.__colDropdownInit) {
-    return;
-  }
-  window.__colDropdownInit = true;
-
-  function updateColumnVisibility(dropdown, columnIndex, isVisible) {
-    const wrapper = dropdown.closest('.col-toggle');
-    if (!wrapper) {
-      return;
-    }
-    wrapper.querySelectorAll('tr').forEach(function(row) {
-      const cell = row.children[columnIndex - 1];
-      if (cell) {
-        cell.style.display = isVisible ? '' : 'none';
-      }
-    });
-  }
-
-  document.addEventListener('change', function(event) {
-    if (!event.target.matches('.col-dropdown input[type="checkbox"]')) {
-      return;
-    }
-    const checkbox = event.target;
-    const dropdown = checkbox.closest('.col-dropdown');
-    if (!dropdown) {
-      return;
-    }
-    const columnIndex = parseInt(checkbox.id.replace('toggle-col', ''), 10);
-    if (Number.isNaN(columnIndex)) {
-      return;
-    }
-    updateColumnVisibility(dropdown, columnIndex, checkbox.checked);
-  });
-
-  document.addEventListener('click', function(event) {
-    const selectAllBtn = event.target.closest('.col-select-all');
-    const clearAllBtn = event.target.closest('.col-clear-all');
-    if (!selectAllBtn && !clearAllBtn) {
-      return;
-    }
-    event.preventDefault();
-    const dropdown = event.target.closest('.col-dropdown');
-    if (!dropdown) {
-      return;
-    }
-    const shouldCheck = Boolean(selectAllBtn);
-    dropdown.querySelectorAll('input[type="checkbox"]').forEach(function(box) {
-      if (box.checked !== shouldCheck) {
-        box.checked = shouldCheck;
-        box.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    });
-  });
-})();
-</script>"""
-		rows.append(style_info)
-		rows.append(hide_controls)
-		rows.append(script_info)
+	        style_info = "<style>\n/* === Column visibility rules === */\n"
+	        for i in range(4, num_columns):
+	                if i == num_columns - 1:
+	                        style_info += f".col-toggle:has(#toggle-col{i+1}:not(:checked)) tr > *:nth-child({i+1}) {{\n  display: none;\n}}"
+	                else:
+	                        style_info += f".col-toggle:has(#toggle-col{i+1}:not(:checked)) tr > *:nth-child({i+1}),\n"
+	        style_info += (
+	                ".col-toggle {\n"
+	                "  position: relative;\n"
+	                "  z-index: 10;\n"
+	                "}\n\n"
+	                ".col-dropdown {\n"
+	                "  position: relative;\n"
+	                "  display: inline-block;\n"
+	                "  margin-bottom: 0.8em;\n"
+	                "  font-size: 0.9em;\n"
+	                "  color: #eee;\n"
+	                "}\n\n"
+	                ".col-dropdown__summary {\n"
+	                "  list-style: none;\n"
+	                "  cursor: pointer;\n"
+	                "  background: #2c3034;\n"
+	                "  padding: 0.45em 0.9em;\n"
+	                "  border-radius: 0.5em;\n"
+	                "  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);\n"
+	                "  transition: background 0.2s ease;\n"
+	                "  user-select: none;\n"
+	                "  display: inline-flex;\n"
+	                "  align-items: center;\n"
+	                "  gap: 0.5em;\n"
+	                "}\n\n"
+	                ".col-dropdown__summary::-webkit-details-marker {\n"
+	                "  display: none;\n"
+	                "}\n\n"
+	                ".col-dropdown__summary::after {\n"
+	                "  content: \"▾\";\n"
+	                "  font-size: 0.8em;\n"
+	                "  opacity: 0.8;\n"
+	                "}\n\n"
+	                ".col-dropdown[open] .col-dropdown__summary {\n"
+	                "  background: #363c41;\n"
+	                "}\n\n"
+	                ".col-dropdown[open] .col-dropdown__summary::after {\n"
+	                "  content: \"▴\";\n"
+	                "}\n\n"
+	                ".col-dropdown__menu {\n"
+	                "  position: absolute;\n"
+	                "  top: calc(100% + 0.35em);\n"
+	                "  right: 0;\n"
+	                "  background: #1f2326;\n"
+	                "  border: 1px solid #444;\n"
+	                "  border-radius: 0.6em;\n"
+	                "  padding: 0.75em;\n"
+	                "  min-width: 18em;\n"
+	                "  display: flex;\n"
+	                "  flex-direction: column;\n"
+	                "  gap: 0.6em;\n"
+	                "  box-shadow: 0 0.5em 1.5em rgba(0, 0, 0, 0.35);\n"
+	                "}\n\n"
+	                ".col-dropdown__actions {\n"
+	                "  display: flex;\n"
+	                "  justify-content: flex-end;\n"
+	                "  gap: 0.5em;\n"
+	                "}\n\n"
+	                ".col-dropdown__actions button {\n"
+	                "  background: #2c3034;\n"
+	                "  color: #eee;\n"
+	                "  border: 1px solid #555;\n"
+	                "  border-radius: 0.4em;\n"
+	                "  padding: 0.25em 0.8em;\n"
+	                "  cursor: pointer;\n"
+	                "  font-size: 0.85em;\n"
+	                "  transition: background 0.2s ease;\n"
+	                "}\n\n"
+	                ".col-dropdown__actions button:hover,\n"
+	                ".col-dropdown__actions button:focus-visible {\n"
+	                "  background: #3a3f44;\n"
+	                "}\n\n"
+	                ".col-controls {\n"
+	                "  display: grid;\n"
+	                "  grid-template-columns: repeat(auto-fit, minmax(12em, 1fr));\n"
+	                "  gap: 0.4em 0.6em;\n"
+	                "}\n\n"
+	                ".col-controls label {\n"
+	                "  display: flex;\n"
+	                "  align-items: center;\n"
+	                "  gap: 0.35em;\n"
+	                "  background: #2c3034;\n"
+	                "  padding: 0.35em 0.6em;\n"
+	                "  border-radius: 0.4em;\n"
+	                "  cursor: pointer;\n"
+	                "  transition: background 0.2s ease;\n"
+	                "}\n\n"
+	                ".col-controls label:hover {\n"
+	                "  background: #3a3f44;\n"
+	                "}\n\n"
+	                ".col-controls input[type=\"checkbox\"] {\n"
+	                "  accent-color: #6cf;\n"
+	                "}\n"
+	                "</style>\n"
+	        )
+	        rows.append(style_info)
+	        rows.append("<div class='col-toggle'>")
+	        hide_controls = [
+	                "<details class=\"col-dropdown\">",
+	                "  <summary class=\"col-dropdown__summary\">Hide Columns</summary>",
+	                "  <div class=\"col-dropdown__menu\">",
+	                "    <div class=\"col-dropdown__actions\">",
+	                "      <button type=\"button\" class=\"col-select-all\">Select all</button>",
+	                "      <button type=\"button\" class=\"col-clear-all\">Clear all</button>",
+	                "    </div>",
+	                "    <div class=\"col-controls\">",
+	        ]
+	        for i, stat in enumerate(column_control_list):
+	                hide_controls.append(f"      <label><input type='checkbox' id='toggle-col{i+5}' checked> {stat}</label>")
+	        hide_controls.extend([
+	                "    </div>",
+	                "  </div>",
+	                "</details>",
+	        ])
+	        rows.append("\n".join(hide_controls))
+	        script_info = (
+	                "<script type=\"text/javascript\">\n"
+	                "(function() {\n"
+	                "  if (window.__colDropdownInit) {\n"
+	                "    return;\n"
+	                "  }\n"
+	                "  window.__colDropdownInit = true;\n\n"
+	                "  function getTableRows(dropdown) {\n"
+	                "    const wrapper = dropdown.closest('.col-toggle');\n"
+	                "    if (!wrapper) {\n"
+	                "      return [];\n"
+	                "    }\n"
+	                "    const tableArea = wrapper.querySelector('.col-toggle__tables');\n"
+	                "    const scope = tableArea || wrapper;\n"
+	                "    return Array.from(scope.querySelectorAll('tr'));\n"
+	                "  }\n\n"
+	                "  function updateColumnVisibility(dropdown, columnIndex, isVisible) {\n"
+	                "    getTableRows(dropdown).forEach(function(row) {\n"
+	                "      const cell = row.children[columnIndex - 1];\n"
+	                "      if (cell) {\n"
+	                "        cell.style.display = isVisible ? '' : 'none';\n"
+	                "      }\n"
+	                "    });\n"
+	                "  }\n\n"
+	                "  function syncDropdown(dropdown) {\n"
+	                "    dropdown.querySelectorAll('input[type=\"checkbox\"]').forEach(function(box) {\n"
+	                "      const columnIndex = parseInt(box.id.replace('toggle-col', ''), 10);\n"
+	                "      if (!Number.isNaN(columnIndex)) {\n"
+	                "        updateColumnVisibility(dropdown, columnIndex, box.checked);\n"
+	                "      }\n"
+	                "    });\n"
+	                "  }\n\n"
+	                "  document.addEventListener('change', function(event) {\n"
+	                "    if (!event.target.matches('.col-dropdown input[type=\"checkbox\"]')) {\n"
+	                "      return;\n"
+	                "    }\n"
+	                "    const checkbox = event.target;\n"
+	                "    const dropdown = checkbox.closest('.col-dropdown');\n"
+	                "    if (!dropdown) {\n"
+	                "      return;\n"
+	                "    }\n"
+	                "    const columnIndex = parseInt(checkbox.id.replace('toggle-col', ''), 10);\n"
+	                "    if (Number.isNaN(columnIndex)) {\n"
+	                "      return;\n"
+	                "    }\n"
+	                "    updateColumnVisibility(dropdown, columnIndex, checkbox.checked);\n"
+	                "  });\n\n"
+	                "  document.addEventListener('click', function(event) {\n"
+	                "    const selectAllBtn = event.target.closest('.col-select-all');\n"
+	                "    const clearAllBtn = event.target.closest('.col-clear-all');\n"
+	                "    if (!selectAllBtn && !clearAllBtn) {\n"
+	                "      return;\n"
+	                "    }\n"
+	                "    event.preventDefault();\n"
+	                "    const dropdown = event.target.closest('.col-dropdown');\n"
+	                "    if (!dropdown) {\n"
+	                "      return;\n"
+	                "    }\n"
+	                "    const shouldCheck = Boolean(selectAllBtn);\n"
+	                "    dropdown.querySelectorAll('input[type=\"checkbox\"]').forEach(function(box) {\n"
+	                "      if (box.checked !== shouldCheck) {\n"
+	                "        box.checked = shouldCheck;\n"
+	                "        box.dispatchEvent(new Event('change', { bubbles: true }));\n"
+	                "      }\n"
+	                "    });\n"
+	                "  });\n\n"
+	                "  document.querySelectorAll('.col-dropdown').forEach(syncDropdown);\n"
+	                "})();\n"
+	                "</script>\n"
+	        )
+	        rows.append(script_info)
 	rows.append('<div style="overflow-y: auto; width: 100%; overflow-x:auto;">\n\n')
 	for toggle in ["Total", "Stat/1s", "Stat/60s"]:
 		rows.append(f'<$reveal stateTitle=<<currentTiddler>> stateField="category_radio" type="match" text="{toggle}" animate="yes">\n')
@@ -5209,6 +5213,9 @@ def send_profession_boon_support_embed(webhook_url: str, profession: str, prof_i
 	}
 
     # Send to Discord
+    if not webhook_url or str(webhook_url).strip().lower() in {"false", "none", ""}:
+        return
+
     payload = {"embeds": [embed]}
     response = requests.post(webhook_url, json=payload)
 
