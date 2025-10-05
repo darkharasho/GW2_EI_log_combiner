@@ -384,7 +384,7 @@ if __name__ == '__main__':
 	else:
 		print("No new team codes found")
 
-	if webhook_url and support_profs:
+	if webhook_url != "false" and support_profs:
 		discord_colors = config_output.profession_discord_color
 		boon_support_data = build_boon_support_data(top_stats, support_profs, config_output.boons)
 		profession_icons = config_output.profession_icons
@@ -397,4 +397,3 @@ if __name__ == '__main__':
 			print("No support professions found")
 		if not webhook_url:
 			print("No webhook URL found")
-	input("Press Enter to exit...")
