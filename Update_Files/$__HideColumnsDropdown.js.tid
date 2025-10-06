@@ -45,7 +45,7 @@ exports.startup = function() {
 
   function findCheckbox(node) {
     while (node && node !== doc) {
-      if (node.nodeType === 1 && node.tagName && node.tagName.toLowerCase() === 'input' && node.type === 'checkbox' && node.hasAttribute('data-col-key')) {
+      if (node.nodeType === 1 && node.tagName && node.tagName.toLowerCase() === 'input' && node.type === 'checkbox' && node.hasAttribute('data-col-index')) {
         return node;
       }
       node = node.parentNode;
@@ -63,8 +63,8 @@ exports.startup = function() {
     return null;
   }
 
-  function getKey(element) {
-    return element ? element.getAttribute('data-col-key') : null;
+  function getIndex(element) {
+    return element ? element.getAttribute('data-col-index') : null;
   }
 
   function findCell(node) {
@@ -80,11 +80,11 @@ exports.startup = function() {
     return null;
   }
 
-  function applyVisibility(wrapper, key, isVisible) {
-    if (!wrapper || !key) {
+  function applyVisibility(wrapper, index, isVisible) {
+    if (!wrapper || !index) {
       return;
     }
-    var selector = '[data-col-key="' + key + '"]';
+    var selector = '[data-col-index="' + index + '"]';
     var elements = wrapper.querySelectorAll(selector);
     for (var i = 0; i < elements.length; i += 1) {
       var cell = findCell(elements[i]);
@@ -98,11 +98,11 @@ exports.startup = function() {
     if (!wrapper) {
       return;
     }
-    var boxes = wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-key]');
+    var boxes = wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]');
     for (var i = 0; i < boxes.length; i += 1) {
-      var key = getKey(boxes[i]);
-      if (key) {
-        applyVisibility(wrapper, key, !!boxes[i].checked);
+      var index = getIndex(boxes[i]);
+      if (index) {
+        applyVisibility(wrapper, index, !!boxes[i].checked);
       }
     }
   }
@@ -149,7 +149,7 @@ exports.startup = function() {
       return;
     }
     var shouldCheck = action.getAttribute('data-col-action') === 'select';
-    var boxes = wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-key]');
+    var boxes = wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]');
     for (var i = 0; i < boxes.length; i += 1) {
       var box = boxes[i];
       if (!!box.checked !== shouldCheck) {
@@ -168,11 +168,11 @@ exports.startup = function() {
     if (!wrapper) {
       return;
     }
-    var key = getKey(checkbox);
-    if (!key) {
+    var index = getIndex(checkbox);
+    if (!index) {
       return;
     }
-    applyVisibility(wrapper, key, !!checkbox.checked);
+    applyVisibility(wrapper, index, !!checkbox.checked);
   });
 
   if (doc.readyState === 'loading') {
