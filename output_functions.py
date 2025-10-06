@@ -126,6 +126,14 @@ exports.startup = function() {
         if (tagName === 'td' || tagName === 'th') {
           return node;
         }
+        if (node.classList && node.classList.length) {
+          for (var i = 0; i < node.classList.length; i += 1) {
+            var cls = node.classList[i];
+            if (cls && cls.indexOf('tc-table') === 0 && (cls.indexOf('cell') !== -1 || cls.indexOf('header') !== -1 || cls.indexOf('col') !== -1)) {
+              return node;
+            }
+          }
+        }
       }
       node = node.parentNode;
     }
@@ -144,6 +152,8 @@ exports.startup = function() {
       var cell = findCell(elements[i]);
       if (cell) {
         cell.style.display = isVisible ? '' : 'none';
+      } else if (elements[i] && elements[i].style) {
+        elements[i].style.display = isVisible ? '' : 'none';
       }
     }
   }
