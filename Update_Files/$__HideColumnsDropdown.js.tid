@@ -84,13 +84,15 @@ exports.startup = function() {
     if (!wrapper || !index) {
       return;
     }
-    var selector = '[data-col-index="' + index + '"]';
+    var selector = '.col-toggletables [data-col-index="' + index + '"]';
     var elements = wrapper.querySelectorAll(selector);
     for (var i = 0; i < elements.length; i += 1) {
-      var cell = findCell(elements[i]);
-      if (cell) {
-        cell.style.display = isVisible ? '' : 'none';
+      var cell = elements[i];
+      if (!cell) {
+        continue;
       }
+      var target = findCell(cell) || cell;
+      target.style.display = isVisible ? '' : 'none';
     }
   }
 
@@ -156,7 +158,12 @@ exports.startup = function() {
         box.checked = shouldCheck;
         dispatchChange(box);
       }
+      var index = getIndex(box);
+      if (index) {
+        applyVisibility(wrapper, index, shouldCheck);
+      }
     }
+    syncWrapper(wrapper);
   });
 
   doc.addEventListener('change', function(event) {

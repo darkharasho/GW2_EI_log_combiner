@@ -87,6 +87,52 @@ HIDE_COLUMNS_BASE_SCRIPT = """<script>
     return null;
   }
 
+  function getIndex(node) {
+    return node ? node.getAttribute('data-col-index') : null;
+  }
+
+  function findCell(node) {
+    while (node && node !== doc) {
+      if (node.nodeType === 1) {
+        var tag = node.tagName ? node.tagName.toLowerCase() : '';
+        if (tag === 'td' || tag === 'th') {
+          return node;
+        }
+      }
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  function applyVisibility(wrapper, index, isVisible) {
+    if (!wrapper || !index) {
+      return;
+    }
+    var selector = '.col-toggletables [data-col-index="' + index + '"]';
+    var elements = wrapper.querySelectorAll(selector);
+    for (var i = 0; i < elements.length; i += 1) {
+      var cell = elements[i];
+      if (!cell) {
+        continue;
+      }
+      var target = findCell(cell) || cell;
+      target.style.display = isVisible ? '' : 'none';
+    }
+  }
+
+  function syncWrapper(wrapper) {
+    if (!wrapper) {
+      return;
+    }
+    var boxes = wrapper.querySelectorAll('input[type=\"checkbox\"][data-col-index]');
+    for (var i = 0; i < boxes.length; i += 1) {
+      var index = getIndex(boxes[i]);
+      if (index) {
+        applyVisibility(wrapper, index, !!boxes[i].checked);
+      }
+    }
+  }
+
   doc.addEventListener('click', function(event) {
     var action = findAction(event.target || event.srcElement);
     if (!action) {
@@ -114,8 +160,34 @@ HIDE_COLUMNS_BASE_SCRIPT = """<script>
           }
         }
       }
+      var index = getIndex(box);
+      if (index) {
+        applyVisibility(wrapper, index, shouldCheck);
+      }
     }
+    syncWrapper(wrapper);
   });
+
+  doc.addEventListener('change', function(event) {
+    var target = event.target || event.srcElement;
+    if (!target || target.type !== 'checkbox' || !target.hasAttribute('data-col-index')) {
+      return;
+    }
+    var wrapper = findWrapper(target);
+    if (!wrapper) {
+      return;
+    }
+    var index = getIndex(target);
+    if (!index) {
+      return;
+    }
+    applyVisibility(wrapper, index, !!target.checked);
+  });
+
+  var wrappers = doc.querySelectorAll ? doc.querySelectorAll('.col-toggle') : [];
+  for (var w = 0; w < wrappers.length; w += 1) {
+    syncWrapper(wrappers[w]);
+  }
 })();
 </script>"""
 
