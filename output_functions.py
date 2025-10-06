@@ -27,116 +27,21 @@ tid_list = []
 
 
 HIDE_COLUMNS_STYLE_BLOCK = """<style class=\"gw2-hide-columns\">
-.col-toggle {
-  position: relative;
-  margin-bottom: 0.75em;
-}
-
-.col-dropdown {
-  position: relative;
-  display: inline-block;
-  font-size: 0.9em;
-  color: #eee;
-}
-
-.col-dropdown__summary {
-  list-style: none;
-  cursor: pointer;
-  background: #2c3034;
-  padding: 0.45em 0.95em;
-  border-radius: 0.5em;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5em;
-  user-select: none;
-}
-
-.col-dropdown__summary::-webkit-details-marker {
-  display: none;
-}
-
-.col-dropdown__summary::after {
-  content: "▾";
-  font-size: 0.8em;
-  opacity: 0.8;
-}
-
-.col-dropdown[open] .col-dropdown__summary {
-  background: #363c41;
-}
-
-.col-dropdown[open] .col-dropdown__summary::after {
-  content: "▴";
-}
-
-.col-dropdown__menu {
-  position: absolute;
-  top: calc(100% + 0.35em);
-  right: 0;
-  background: #1f2326;
-  border: 1px solid #444;
-  border-radius: 0.6em;
-  padding: 0.85em 1.05em;
-  min-width: clamp(22em, 3vw + 24em, 36em);
-  box-shadow: 0 0.75em 1.8em rgba(0, 0, 0, 0.35);
-  display: flex;
-  flex-direction: column;
-  gap: 0.85em;
-  z-index: 20;
-}
-
-.col-dropdown__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75em;
-}
-
-.col-dropdown__action {
-  background: #2c3034;
-  color: #eee;
-  border: 1px solid #555;
-  border-radius: 0.45em;
-  padding: 0.35em 1.05em;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.col-dropdown__action:hover,
-.col-dropdown__action:focus-visible {
-  background: #3a3f44;
-  outline: none;
-}
-
-.col-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.85em 1.2em;
-}
-
-.col-controls label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6em;
-  background: #2c3034;
-  padding: 0.5em 1.15em;
-  border-radius: 0.5em;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  white-space: nowrap;
-}
-
-.col-controls label:hover {
-  background: #3b4045;
-}
-
-.col-controls input[type=\"checkbox\"] {
-  accent-color: #6cf;
-}
-
-.col-toggletables {
-  width: 100%;
-}
+.col-toggle { position: relative; margin-bottom: 0.75em; }
+.col-dropdown { position: relative; display: inline-block; font-size: 0.9em; color: #eee; }
+.col-dropdown__summary { list-style: none; cursor: pointer; background: #2c3034; padding: 0.45em 0.95em; border-radius: 0.5em; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); display: inline-flex; align-items: center; gap: 0.5em; user-select: none; }
+.col-dropdown__summary::-webkit-details-marker { display: none; }
+.col-dropdown__summary::after { content: \"▾\"; font-size: 0.8em; opacity: 0.8; }
+.col-dropdown[open] .col-dropdown__summary { background: #363c41; }
+.col-dropdown[open] .col-dropdown__summary::after { content: \"▴\"; }
+.col-dropdown__menu { position: absolute; top: calc(100% + 0.35em); right: 0; background: #1f2326; border: 1px solid #444; border-radius: 0.6em; padding: 0.85em 1em; min-width: 22em; box-shadow: 0 0.75em 1.8em rgba(0,0,0,0.35); display: flex; flex-direction: column; gap: 0.9em; z-index: 20; }
+.col-dropdown__actions { display: flex; justify-content: flex-end; gap: 0.6em; }
+.col-dropdown__action { background: #2c3034; color: #eee; border: 1px solid #555; border-radius: 0.45em; padding: 0.35em 1em; cursor: pointer; transition: background 0.2s ease; }
+.col-dropdown__action:hover, .col-dropdown__action:focus-visible { background: #3a3f44; outline: none; }
+.col-controls { display: flex; flex-wrap: wrap; gap: 0.75em 1.05em; }
+.col-controls label { display: inline-flex; align-items: center; gap: 0.55em; background: #2c3034; padding: 0.5em 1.15em; border-radius: 0.5em; cursor: pointer; transition: background 0.2s ease; white-space: nowrap; }
+.col-controls label:hover { background: #3b4045; }
+.col-controls input[type=\"checkbox\"] { accent-color: #6cf; }
 </style>"""
 
 
@@ -148,8 +53,14 @@ HIDE_COLUMNS_SCRIPT_BLOCK = """<script>(function(){
   }
   window.gw2HideColumnsInit = true;
 
-  function getWrapper(element) {
-    return element.closest ? element.closest('.col-toggle') : null;
+  function closestWrapper(node) {
+    while (node && node !== document) {
+      if (node.classList && node.classList.contains('col-toggle')) {
+        return node;
+      }
+      node = node.parentNode;
+    }
+    return null;
   }
 
   function getTableRows(wrapper) {
@@ -160,104 +71,164 @@ HIDE_COLUMNS_SCRIPT_BLOCK = """<script>(function(){
     if (!container) {
       return [];
     }
-    return Array.from(container.querySelectorAll('tr'));
+    return container.querySelectorAll('tr');
   }
 
-  function updateColumnVisibility(wrapper, index, isVisible) {
-    if (!wrapper || !index) {
+  function parseIndex(element) {
+    if (!element) {
+      return null;
+    }
+    var raw = element.getAttribute('data-col-index');
+    if (raw === null) {
+      return null;
+    }
+    var value = parseInt(raw, 10);
+    return isNaN(value) ? null : value;
+  }
+
+  function applyVisibility(wrapper, index, isVisible) {
+    if (wrapper === null || index === null) {
       return;
     }
-    getTableRows(wrapper).forEach(function(row) {
-      var cell = row.children[index - 1];
+    var rows = getTableRows(wrapper);
+    for (var r = 0; r < rows.length; r += 1) {
+      var row = rows[r];
+      if (!row || !row.children || index >= row.children.length) {
+        continue;
+      }
+      var cell = row.children[index];
       if (cell) {
         cell.style.display = isVisible ? '' : 'none';
       }
-    });
+    }
   }
 
   function syncWrapper(wrapper) {
-    if (!wrapper || !wrapper.querySelector('.col-dropdown')) {
+    if (!wrapper) {
       return;
     }
-    wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]').forEach(function(box) {
-      var index = Number(box.getAttribute('data-col-index'));
-      if (!Number.isNaN(index)) {
-        updateColumnVisibility(wrapper, index, box.checked);
+    var boxes = wrapper.querySelectorAll('.col-dropdown input[type=\"checkbox\"][data-col-index]');
+    for (var i = 0; i < boxes.length; i += 1) {
+      var box = boxes[i];
+      var index = parseIndex(box);
+      if (index === null) {
+        continue;
       }
-    });
+      applyVisibility(wrapper, index, !!box.checked);
+    }
+  }
+
+  function setChecked(wrapper, input, value) {
+    if (!input) {
+      return;
+    }
+    input.checked = value;
+    var index = parseIndex(input);
+    if (index === null) {
+      return;
+    }
+    applyVisibility(wrapper, index, value);
+  }
+
+  function toggleAll(wrapper, selectAll) {
+    if (!wrapper) {
+      return;
+    }
+    var boxes = wrapper.querySelectorAll('.col-dropdown input[type=\"checkbox\"][data-col-index]');
+    for (var i = 0; i < boxes.length; i += 1) {
+      setChecked(wrapper, boxes[i], selectAll);
+    }
   }
 
   function handleCheckboxChange(event) {
-    var checkbox = event.target;
-    if (!(checkbox instanceof HTMLInputElement)) {
+    var target = event.target;
+    if (!target || target.tagName !== 'INPUT' || target.type !== 'checkbox') {
       return;
     }
-    if (!checkbox.matches('input[type="checkbox"][data-col-index]')) {
+    if (!target.hasAttribute('data-col-index')) {
       return;
     }
-    if (!checkbox.closest('.col-dropdown')) {
-      return;
-    }
-    var wrapper = getWrapper(checkbox);
+    var wrapper = closestWrapper(target);
     if (!wrapper) {
       return;
     }
-    var index = Number(checkbox.getAttribute('data-col-index'));
-    if (Number.isNaN(index)) {
+    var index = parseIndex(target);
+    if (index === null) {
       return;
     }
-    updateColumnVisibility(wrapper, index, checkbox.checked);
+    applyVisibility(wrapper, index, !!target.checked);
   }
 
   function handleActionClick(event) {
-    var button = event.target.closest('.col-dropdown__action[data-col-action]');
-    if (!button) {
+    var button = event.target;
+    while (button && button !== document && (!button.dataset || !button.dataset.colAction)) {
+      button = button.parentNode;
+    }
+    if (!button || !button.dataset) {
       return;
     }
-    event.preventDefault();
-    var wrapper = getWrapper(button);
+    var wrapper = closestWrapper(button);
     if (!wrapper) {
       return;
     }
-    var shouldCheck = button.getAttribute('data-col-action') === 'select';
-    wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]').forEach(function(box) {
-      if (box.checked !== shouldCheck) {
-        box.checked = shouldCheck;
-        box.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    });
+    event.preventDefault();
+    toggleAll(wrapper, button.dataset.colAction === 'select');
   }
 
   function initExisting(root) {
-    (root || document).querySelectorAll('.col-toggle').forEach(syncWrapper);
+    var nodes = (root || document).querySelectorAll('.col-toggle');
+    for (var i = 0; i < nodes.length; i += 1) {
+      syncWrapper(nodes[i]);
+    }
   }
 
-  document.addEventListener('change', handleCheckboxChange);
-  document.addEventListener('click', handleActionClick);
+  document.addEventListener('change', handleCheckboxChange, true);
+  document.addEventListener('click', handleActionClick, true);
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
       initExisting(document);
     });
   } else {
-    initExisting(document);
+    setTimeout(function() {
+      initExisting(document);
+    }, 0);
   }
 
-  new MutationObserver(function(mutations) {
-    mutations.forEach(function(mutation) {
-      mutation.addedNodes.forEach(function(node) {
-        if (!(node instanceof Element)) {
-          return;
+  var observerTarget = document.documentElement || document.body;
+  if (observerTarget && observerTarget.ownerDocument) {
+    new MutationObserver(function(mutations) {
+      for (var m = 0; m < mutations.length; m += 1) {
+        var mutation = mutations[m];
+        var added = mutation.addedNodes;
+        for (var a = 0; a < added.length; a += 1) {
+          var node = added[a];
+          if (!node || node.nodeType !== 1) {
+            continue;
+          }
+          if (node.classList && node.classList.contains('col-toggle')) {
+            syncWrapper(node);
+          } else if (node.querySelectorAll) {
+            var wrappers = node.querySelectorAll('.col-toggle');
+            for (var w = 0; w < wrappers.length; w += 1) {
+              syncWrapper(wrappers[w]);
+            }
+          }
         }
-        if (node.matches && node.matches('.col-toggle')) {
-          syncWrapper(node);
-        } else if (node.querySelectorAll) {
-          node.querySelectorAll('.col-toggle').forEach(syncWrapper);
-        }
-      });
-    });
-  }).observe(document.documentElement, { childList: true, subtree: true });
+      }
+    }).observe(observerTarget, { childList: true, subtree: true });
+  }
+
+  window.gw2HideColumnsToggleAll = function(trigger, selectAll) {
+    var wrapper = closestWrapper(trigger);
+    if (!wrapper) {
+      return false;
+    }
+    toggleAll(wrapper, !!selectAll);
+    return false;
+  };
 })();</script>"""
+
 
 
 _hide_column_assets_added = False
@@ -843,19 +814,35 @@ def build_category_summary_table(top_stats: dict, category_stats: dict, enable_h
 				column_control_list.append(f"{{{{{stat}}}}}")
 
 		if column_control_list:
+			menu_style = (
+				"position:absolute; top:calc(100% + 0.35em); right:0; background:#1f2326; border:1px solid #444; "
+				"border-radius:0.6em; padding:0.85em 1em; min-width:22em; box-shadow:0 0.75em 1.8em rgba(0,0,0,0.35); "
+				"display:flex; flex-direction:column; gap:0.9em; z-index:20;"
+			)
+			actions_style = "display:flex; justify-content:flex-end; gap:0.6em;"
+			button_style = (
+				"background:#2c3034; color:#eee; border:1px solid #555; border-radius:0.45em; padding:0.35em 1em; "
+				"cursor:pointer; transition:background 0.2s ease;"
+			)
+			controls_style = "display:flex; flex-wrap:wrap; gap:0.75em 1.1em;"
+			label_style = (
+				"display:inline-flex; align-items:center; gap:0.55em; background:#2c3034; padding:0.5em 1.15em; "
+				"border-radius:0.5em; cursor:pointer; transition:background 0.2s ease; white-space:nowrap;"
+			)
+			checkbox_style = "accent-color:#6cf;"
 			hide_controls = [
 				"<details class=\"col-dropdown\">",
 				"<summary class=\"col-dropdown__summary\">Hide Columns</summary>",
-				"<div class=\"col-dropdown__menu\">",
-				"<div class=\"col-dropdown__actions\">",
-				"<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"select\">Select all</button>",
-				"<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"clear\">Clear all</button>",
+				f"<div class=\"col-dropdown__menu\" style=\"{menu_style}\">",
+				f"<div class=\"col-dropdown__actions\" style=\"{actions_style}\">",
+				f"<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"select\" onclick=\"return gw2HideColumnsToggleAll(this,true);\" style=\"{button_style}\">Select all</button>",
+				f"<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"clear\" onclick=\"return gw2HideColumnsToggleAll(this,false);\" style=\"{button_style}\">Clear all</button>",
 				"</div>",
-				"<div class=\"col-controls\">",
+				f"<div class=\"col-controls\" style=\"{controls_style}\">",
 			]
-			for i, stat in enumerate(column_control_list, start=5):
+			for column_index, stat in enumerate(column_control_list, start=4):
 				hide_controls.append(
-					f"<label data-col-index='{i}'><input type='checkbox' id='toggle-col{i}' data-col-index='{i}' checked> {stat}</label>"
+					f"<label style=\"{label_style}\"><input type='checkbox' id='toggle-col{column_index}' data-col-index='{column_index}' checked style=\"{checkbox_style}\"> {stat}</label>"
 				)
 			hide_controls.extend([
 				"</div>",
