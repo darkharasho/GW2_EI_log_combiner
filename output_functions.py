@@ -566,183 +566,56 @@ def build_category_summary_table(top_stats: dict, category_stats: dict, enable_h
 	rows = []
 	
 
+	rows.append("<div class='col-toggle'>")
 	if enable_hide_columns:
-	        column_control_list = []
-	        num_columns = 4
-	        for stat in category_stats:
-	                #<label><input type="checkbox" id="toggle-col5" checked> {{totalDmg}}</label>
-	                if stat =="damage":
-	                        column_control_list.append("{{totalDmg}}")
-	                        num_columns += 1
-	                elif stat == "connectedDamageCount":
-	                        column_control_list.append("{{connectedDamageCount}}")
-	                        num_columns += 1
-	                elif stat == "connectedDirectDamageCount":
-	                        column_control_list.append("{{connectedDirectDamageCount}}")
-	                        column_control_list.append("{{connectedIndirectDamageCount}}")
-	                        num_columns += 2
-	                elif stat == "boonStripDownContribution":
-	                        column_control_list.append("{{boonStrips}}{{downed}}")
-	                        num_columns += 1
-	                elif stat == "boonStripDownContributionTime":
-	                        column_control_list.append("{{boonStripsTime}}{{downed}}")
-	                        num_columns += 1
-	                elif stat in defense_hits:
-	                        column_control_list.append("{{"+f"{defense_hits[stat]}"+"}}"+"[img width=16 [Hits|hits.png]]")
-	                        num_columns += 1
-	                elif stat == "appliedCrowdControlDownContribution":
-	                        column_control_list.append("{{appliedCrowdControl}}{{downed}}")
-	                        num_columns += 1
-	                elif stat == "appliedCrowdControlDurationDownContribution":
-	                        column_control_list.append("{{appliedCrowdControlDuration}}{{downed}}")
-	                        num_columns += 1
-	                elif stat == "damageBarrier":
-	                        column_control_list.append("{{"+stat+"}}")
-	                        column_control_list.append("{{"+stat+"}} %")
-	                        num_columns += 2
-	                else:
-	                        column_control_list.append("{{"+stat+"}}")
-	                        num_columns += 1
+		column_control_list = []
+		for stat in category_stats:
+			if stat =="damage":
+				column_control_list.append("{{totalDmg}}")
+			elif stat == "connectedDamageCount":
+				column_control_list.append("{{connectedDamageCount}}")
+			elif stat == "connectedDirectDamageCount":
+				column_control_list.append("{{connectedDirectDamageCount}}")
+				column_control_list.append("{{connectedIndirectDamageCount}}")
+			elif stat == "boonStripDownContribution":
+				column_control_list.append("{{boonStrips}}{{downed}}")
+			elif stat == "boonStripDownContributionTime":
+				column_control_list.append("{{boonStripsTime}}{{downed}}")
+			elif stat in defense_hits:
+				column_control_list.append(f"{{{{{defense_hits[stat]}}}}}[img width=16 [Hits|hits.png]]")
+			elif stat == "appliedCrowdControlDownContribution":
+				column_control_list.append("{{appliedCrowdControl}}{{downed}}")
+			elif stat == "appliedCrowdControlDurationDownContribution":
+				column_control_list.append("{{appliedCrowdControlDuration}}{{downed}}")
+			elif stat == "damageBarrier":
+				column_control_list.append(f"{{{{{stat}}}}}")
+				column_control_list.append(f"{{{{{stat}}}}} %")
+			else:
+				column_control_list.append(f"{{{{{stat}}}}}")
 
+		if column_control_list:
+			hide_controls = [
+				"<details class=\"col-dropdown\">",
+				"<summary class=\"col-dropdown__summary\">Hide Columns</summary>",
+				"<div class=\"col-dropdown__menu\">",
+				"<div class=\"col-dropdown__actions\">",
+				"<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"select\">Select all</button>",
+				"<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"clear\">Clear all</button>",
+				"</div>",
+				"<div class=\"col-controls\">",
+			]
+			for i, stat in enumerate(column_control_list, start=5):
+				hide_controls.append(
+					f"<label data-col-index='{i}'><input type='checkbox' id='toggle-col{i}' data-col-index='{i}' checked> {stat}</label>"
+				)
+			hide_controls.extend([
+				"</div>",
+				"</div>",
+				"</details>",
+			])
+			rows.append("\n".join(hide_controls))
 
-	                style_lines = [
-	                        "<$rawhtml>",
-	                        "<style>",
-	                        "/* === Column visibility rules === */",
-	                ]
-	                for i in range(4, num_columns):
-	                        if i == num_columns - 1:
-	                                style_lines.append(
-	                                        f".col-toggle:has(#toggle-col{i+1}:not(:checked)) tr > *:nth-child({i+1}) {{\n  display: none;\n}}"
-	                                )
-	                        else:
-	                                style_lines.append(
-	                                        f".col-toggle:has(#toggle-col{i+1}:not(:checked)) tr > *:nth-child({i+1}),"
-	                                )
-	                style_lines.extend([
-	                        ".col-toggle {",
-	                        "  position: relative;",
-	                        "  z-index: 10;",
-	                        "}",
-	                        ".col-dropdown {",
-	                        "  position: relative;",
-	                        "  display: inline-block;",
-	                        "  margin-bottom: 0.4em;",
-	                        "  font-size: 0.9em;",
-	                        "  color: #eee;",
-	                        "}",
-	                        ".col-dropdown__summary {",
-	                        "  list-style: none;",
-	                        "  cursor: pointer;",
-	                        "  background: #2c3034;",
-	                        "  padding: 0.45em 0.9em;",
-	                        "  border-radius: 0.5em;",
-	                        "  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);",
-	                        "  transition: background 0.2s ease;",
-	                        "  user-select: none;",
-	                        "  display: inline-flex;",
-	                        "  align-items: center;",
-	                        "  gap: 0.5em;",
-	                        "}",
-	                        ".col-dropdown__summary::-webkit-details-marker {",
-	                        "  display: none;",
-	                        "}",
-	                        ".col-dropdown__summary::after {",
-	                        "  content: \"▾\";",
-	                        "  font-size: 0.8em;",
-	                        "  opacity: 0.8;",
-	                        "}",
-	                        ".col-dropdown[open] .col-dropdown__summary {",
-	                        "  background: #363c41;",
-	                        "}",
-	                        ".col-dropdown[open] .col-dropdown__summary::after {",
-	                        "  content: \"▴\";",
-	                        "}",
-	                        ".col-dropdown__menu {",
-	                        "  position: absolute;",
-	                        "  top: calc(100% + 0.35em);",
-	                        "  right: 0;",
-	                        "  background: #1f2326;",
-	                        "  border: 1px solid #444;",
-	                        "  border-radius: 0.6em;",
-	                        "  padding: 0.6em;",
-	                        "  min-width: clamp(24em, 2vw + 24em, 36em);",
-	                        "  display: flex;",
-	                        "  flex-direction: column;",
-	                        "  gap: 0.6em;",
-	                        "  box-shadow: 0 0.5em 1.5em rgba(0, 0, 0, 0.35);",
-	                        "}",
-	                        ".col-dropdown__actions {",
-	                        "  display: flex;",
-	                        "  justify-content: flex-end;",
-	                        "  gap: 0.5em;",
-	                        "}",
-	                        ".col-dropdown__actions button {",
-	                        "  background: #2c3034;",
-	                        "  color: #eee;",
-	                        "  border: 1px solid #555;",
-	                        "  border-radius: 0.4em;",
-	                        "  padding: 0.25em 0.8em;",
-	                        "  cursor: pointer;",
-	                        "  transition: background 0.2s ease;",
-	                        "}",
-	                        ".col-dropdown__actions button:hover,",
-	                        ".col-dropdown__actions button:focus-visible {",
-	                        "  background: #3b4045;",
-	                        "  outline: none;",
-	                        "}",
-	                        ".col-controls {",
-	                        "  display: grid;",
-	                        "  grid-template-columns: repeat(auto-fit, minmax(11em, 1fr));",
-	                        "  gap: 0.45em;",
-	                        "}",
-	                        ".col-controls label {",
-	                        "  display: flex;",
-	                        "  align-items: center;",
-	                        "  gap: 0.35em;",
-	                        "  background: #2c3034;",
-	                        "  padding: 0.35em 0.5em;",
-	                        "  border-radius: 0.4em;",
-	                        "  cursor: pointer;",
-	                        "  transition: background 0.2s ease;",
-	                        "  white-space: normal;",
-	                        "}",
-	                        ".col-controls label:hover {",
-	                        "  background: #3a3f44;",
-	                        "}",
-	                        ".col-controls input[type=\"checkbox\"] {",
-	                        "  accent-color: #6cf;",
-	                        "}",
-	                        "</style>",
-	                        "</$rawhtml>",
-	                ])
-	                script_block = (
-	                        "<$rawhtml><script>(function(){if(window.colDropdownInit){return;}window.colDropdownInit=true;function getTableRows(dropdown){var wrapper=dropdown.closest('.col-toggle');if(!wrapper){return [];}var tableArea=wrapper.querySelector('.col-toggletables');var scope=tableArea||wrapper;return Array.prototype.slice.call(scope.querySelectorAll('tr'));}function updateColumnVisibility(dropdown,columnIndex,isVisible){if(!columnIndex){return;}getTableRows(dropdown).forEach(function(row){var cell=row.children[columnIndex-1];if(cell){cell.style.display=isVisible?'':'none';}});}function syncDropdown(dropdown){dropdown.querySelectorAll('input[type=\"checkbox\"][data-col-index]').forEach(function(box){var index=parseInt(box.getAttribute('data-col-index'),10);if(!isNaN(index)){updateColumnVisibility(dropdown,index,box.checked);}});}function handleCheckboxChange(event){var checkbox=event.target;if(!checkbox.matches('.col-dropdown input[type=\"checkbox\"][data-col-index]')){return;}var dropdown=checkbox.closest('.col-dropdown');if(!dropdown){return;}var index=parseInt(checkbox.getAttribute('data-col-index'),10);if(isNaN(index)){return;}updateColumnVisibility(dropdown,index,checkbox.checked);}function handleActionClick(event){var button=event.target.closest('[data-col-action]');if(!button){return;}event.preventDefault();var dropdown=button.closest('.col-dropdown');if(!dropdown){return;}var shouldCheck=button.getAttribute('data-col-action')==='select';dropdown.querySelectorAll('input[type=\"checkbox\"][data-col-index]').forEach(function(box){if(box.checked!==shouldCheck){box.checked=shouldCheck;box.dispatchEvent(new Event('change',{bubbles:true}));}});}function initExisting(){document.querySelectorAll('.col-dropdown').forEach(syncDropdown);}document.addEventListener('change',handleCheckboxChange);document.addEventListener('click',handleActionClick);if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',initExisting);}else{initExisting();}new MutationObserver(function(mutations){mutations.forEach(function(mutation){mutation.addedNodes.forEach(function(node){if(!(node instanceof Element)){return;}if(node.matches && node.matches('.col-dropdown')){syncDropdown(node);}if(node.querySelectorAll){node.querySelectorAll('.col-dropdown').forEach(syncDropdown);}});});}).observe(document.documentElement,{childList:true,subtree:true});})();</script></$rawhtml>"
-	                )
-	                rows.append("\n".join(style_lines))
-	                rows.append(script_block)
-	                rows.append("<div class='col-toggle'>")
-	                hide_controls = [
-	                "<details class=\"col-dropdown\">",
-	                "<summary class=\"col-dropdown__summary\">Hide Columns</summary>",
-	                "<div class=\"col-dropdown__menu\">",
-	                "<div class=\"col-dropdown__actions\">",
-	                "<button type=\"button\" class=\"col-select-all\" data-col-action=\"select\">Select all</button>",
-	                "<button type=\"button\" class=\"col-clear-all\" data-col-action=\"clear\">Clear all</button>",
-	                "</div>",
-	                "<div class=\"col-controls\">",
-	                ]
-	                for i, stat in enumerate(column_control_list):
-	                        hide_controls.append(
-	                                f"<label><input type='checkbox' id='toggle-col{i+5}' data-col-index='{i+5}' checked> {stat}</label>"
-	                        )
-	                hide_controls.extend([
-	                "</div>",
-	                "</div>",
-	                "</details>",
-	                ])
-	                rows.append("\n".join(hide_controls))
-	rows.append('<div style="overflow-y: auto; width: 100%; overflow-x:auto;">\n\n')
+	rows.append('<div class="col-toggletables" style="overflow-y: auto; width: 100%; overflow-x:auto;">\n\n')
 	for toggle in ["Total", "Stat/1s", "Stat/60s"]:
 		rows.append(f'<$reveal stateTitle=<<currentTiddler>> stateField="category_radio" type="match" text="{toggle}" animate="yes">\n')
 		# Build the table header
@@ -835,10 +708,8 @@ def build_category_summary_table(top_stats: dict, category_stats: dict, enable_h
 		rows.append(f'|<$radio field="category_radio" value="Total"> Total  </$radio> - <$radio field="category_radio" value="Stat/1s"> Stat/1s  </$radio> - <$radio field="category_radio" value="Stat/60s"> Stat/60s  </$radio> - {caption} Table|c')
 		rows.append("\n</$reveal>")
 
-	if enable_hide_columns:
-		rows.append("\n</div>\n") 		
-
-	rows.append("\n\n</div>")
+	rows.append("\n</div>")
+	rows.append("\n</div>")
 	#push table to tid_list for output
 	tid_text = "\n".join(rows)
 
@@ -5158,9 +5029,6 @@ def send_profession_boon_support_embed(webhook_url: str, profession: str, prof_i
 	}
 
     # Send to Discord
-    if not webhook_url or str(webhook_url).strip().lower() in {"false", "none", ""}:
-        return
-
     payload = {"embeds": [embed]}
     response = requests.post(webhook_url, json=payload)
 

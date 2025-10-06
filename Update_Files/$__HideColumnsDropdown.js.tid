@@ -1,0 +1,115 @@
+created: 20250101000000000
+creator: Drevarr
+modified: 20250101000000000
+modifier: Drevarr
+title: $:/GW2/HideColumnsDropdown
+tags: $:/tags/RawMarkup
+type: application/javascript
+
+(function(){
+    'use strict';
+
+    function getWrapper(element) {
+        return element.closest ? element.closest('.col-toggle') : null;
+    }
+
+    function getTableRows(wrapper) {
+        if (!wrapper) {
+            return [];
+        }
+        const container = wrapper.querySelector('.col-toggletables');
+        if (!container) {
+            return [];
+        }
+        return Array.from(container.querySelectorAll('tr'));
+    }
+
+    function updateColumnVisibility(wrapper, index, isVisible) {
+        if (!wrapper || !index) {
+            return;
+        }
+        getTableRows(wrapper).forEach(function(row) {
+            const cell = row.children[index - 1];
+            if (cell) {
+                cell.style.display = isVisible ? '' : 'none';
+            }
+        });
+    }
+
+    function syncWrapper(wrapper) {
+        if (!wrapper || !wrapper.querySelector('.col-dropdown')) {
+            return;
+        }
+        wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]').forEach(function(box) {
+            const index = Number(box.getAttribute('data-col-index'));
+            if (!Number.isNaN(index)) {
+                updateColumnVisibility(wrapper, index, box.checked);
+            }
+        });
+    }
+
+    function handleCheckboxChange(event) {
+        const checkbox = event.target.closest('.col-dropdown input[type="checkbox"][data-col-index]');
+        if (!checkbox) {
+            return;
+        }
+        const wrapper = getWrapper(checkbox);
+        if (!wrapper) {
+            return;
+        }
+        const index = Number(checkbox.getAttribute('data-col-index'));
+        if (Number.isNaN(index)) {
+            return;
+        }
+        updateColumnVisibility(wrapper, index, checkbox.checked);
+    }
+
+    function handleActionClick(event) {
+        const button = event.target.closest('.col-dropdown__action[data-col-action]');
+        if (!button) {
+            return;
+        }
+        event.preventDefault();
+        const wrapper = getWrapper(button);
+        if (!wrapper) {
+            return;
+        }
+        const shouldCheck = button.getAttribute('data-col-action') === 'select';
+        wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]').forEach(function(box) {
+            if (box.checked !== shouldCheck) {
+                box.checked = shouldCheck;
+                box.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
+    }
+
+    function initExisting(root) {
+        (root || document).querySelectorAll('.col-toggle').forEach(syncWrapper);
+    }
+
+    document.addEventListener('change', handleCheckboxChange);
+    document.addEventListener('click', handleActionClick);
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            initExisting(document);
+        });
+    } else {
+        initExisting(document);
+    }
+
+    new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            mutation.addedNodes.forEach(function(node) {
+                if (!(node instanceof Element)) {
+                    return;
+                }
+                if (node.matches && node.matches('.col-toggle')) {
+                    syncWrapper(node);
+                } else if (node.querySelectorAll) {
+                    node.querySelectorAll('.col-toggle').forEach(syncWrapper);
+                }
+            });
+        });
+    }).observe(document.documentElement, { childList: true, subtree: true });
+})();
