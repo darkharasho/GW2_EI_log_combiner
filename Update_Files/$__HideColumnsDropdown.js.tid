@@ -49,8 +49,14 @@ type: application/javascript
     }
 
     function handleCheckboxChange(event) {
-        const checkbox = event.target.closest('.col-dropdown input[type="checkbox"][data-col-index]');
-        if (!checkbox) {
+        const checkbox = event.target;
+        if (!(checkbox instanceof HTMLInputElement)) {
+            return;
+        }
+        if (!checkbox.matches('input[type="checkbox"][data-col-index]')) {
+            return;
+        }
+        if (!checkbox.closest('.col-dropdown')) {
             return;
         }
         const wrapper = getWrapper(checkbox);

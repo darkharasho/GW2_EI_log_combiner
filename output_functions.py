@@ -4968,8 +4968,9 @@ def send_profession_boon_support_embed(webhook_url: str, profession: str, prof_i
         return
     if not webhook_url:
         return
-    else:
-        print("WebHook URL: ", webhook_url)		
+    webhook_url = str(webhook_url).strip()
+    if not webhook_url or webhook_url.lower() in {"false", "none"}:
+        return
     # Limit name field to 12 characters
     for row in data[1:]:
         row[0] = str(row[0])[:12]
