@@ -6,7 +6,6 @@ title: $:/GW2/HideColumnsStyles
 tags: $:/tags/Stylesheet
 type: text/vnd.tiddlywiki
 
-<style>
 .col-toggle { position: relative; margin-bottom: 0.75em; }
 .col-dropdown { position: relative; display: inline-block; font-size: 0.9em; color: #eee; }
 .col-dropdown__button { display: inline-flex; align-items: center; gap: 0.55em; padding: 0.55em 1.05em; cursor: pointer; background: #2c3034; color: inherit; border: 1px solid rgba(255,255,255,0.12); border-radius: 0.6em; user-select: none; font: inherit; list-style: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); }
@@ -25,4 +24,3 @@ type: text/vnd.tiddlywiki
 .col-controls label:hover { background: #3b4045; }
 .col-controls input[type="checkbox"] { accent-color: #6cf; width: 1.1em; height: 1.1em; }
 .col-toggletables { width: 100%; }
-</style>

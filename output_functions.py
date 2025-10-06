@@ -28,8 +28,10 @@ from collections import defaultdict
 tid_list = []
 
 
-HIDE_COLUMNS_STYLE_BLOCK = """<style class=\"gw2-hide-columns\">
-.col-toggle { position: relative; margin-bottom: 0.75em; }
+HIDE_COLUMNS_STYLE_TITLE = "$:/GW2/HideColumnsStyles"
+
+
+HIDE_COLUMNS_STYLE_TEXT = """.col-toggle { position: relative; margin-bottom: 0.75em; }
 .col-dropdown { position: relative; display: inline-block; font-size: 0.9em; color: #eee; }
 .col-dropdown__button { display: inline-flex; align-items: center; gap: 0.55em; padding: 0.55em 1.05em; cursor: pointer; background: #2c3034; color: inherit; border: 1px solid rgba(255,255,255,0.12); border-radius: 0.6em; user-select: none; font: inherit; list-style: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); }
 .col-dropdown__button::-webkit-details-marker { display: none; }
@@ -47,19 +49,31 @@ HIDE_COLUMNS_STYLE_BLOCK = """<style class=\"gw2-hide-columns\">
 .col-controls label:hover { background: #3b4045; }
 .col-controls input[type="checkbox"] { accent-color: #6cf; width: 1.1em; height: 1.1em; }
 .col-toggletables { width: 100%; }
-</style>"""
+"""
 
 
-HIDE_COLUMNS_SCRIPT_BLOCK = """<script type=\"application/javascript\">(function(){
-  'use strict';
+HIDE_COLUMNS_SCRIPT_TITLE = "$:/GW2/HideColumnsDropdown"
+
+
+HIDE_COLUMNS_SCRIPT_TEXT = """exports.name = "gw2-hide-columns";
+exports.platforms = ["browser"];
+exports.after = ["startup"];
+exports.synchronous = true;
+
+exports.startup = function() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return;
+  }
 
   if (window.gw2HideColumnsInit) {
     return;
   }
   window.gw2HideColumnsInit = true;
 
+  var doc = document;
+
   function closestWrapper(node) {
-    while (node && node !== document) {
+    while (node && node !== doc) {
       if (node.classList && node.classList.contains('col-toggle')) {
         return node;
       }
@@ -69,7 +83,7 @@ HIDE_COLUMNS_SCRIPT_BLOCK = """<script type=\"application/javascript\">(function
   }
 
   function findAction(node) {
-    while (node && node !== document) {
+    while (node && node !== doc) {
       if (node.nodeType === 1 && node.classList && node.classList.contains('col-dropdown__action') && node.getAttribute('data-col-action')) {
         return node;
       }
@@ -79,7 +93,7 @@ HIDE_COLUMNS_SCRIPT_BLOCK = """<script type=\"application/javascript\">(function
   }
 
   function findCheckbox(node) {
-    while (node && node !== document) {
+    while (node && node !== doc) {
       if (node.nodeType === 1 && node.tagName && node.tagName.toLowerCase() === 'input' && node.type === 'checkbox' && node.hasAttribute('data-col-index')) {
         return node;
       }
@@ -89,7 +103,7 @@ HIDE_COLUMNS_SCRIPT_BLOCK = """<script type=\"application/javascript\">(function
   }
 
   function findDropdown(node) {
-    while (node && node !== document) {
+    while (node && node !== doc) {
       if (node.nodeType === 1 && node.classList && node.classList.contains('col-dropdown')) {
         return node;
       }
@@ -161,8 +175,8 @@ HIDE_COLUMNS_SCRIPT_BLOCK = """<script type=\"application/javascript\">(function
       var evt = new Event('change', { bubbles: true });
       element.dispatchEvent(evt);
     } catch (error) {
-      if (typeof document.createEvent === 'function') {
-        var legacy = document.createEvent('Event');
+      if (typeof doc.createEvent === 'function') {
+        var legacy = doc.createEvent('Event');
         legacy.initEvent('change', true, false);
         element.dispatchEvent(legacy);
       }
@@ -178,13 +192,13 @@ HIDE_COLUMNS_SCRIPT_BLOCK = """<script type=\"application/javascript\">(function
   }
 
   function initAll() {
-    var wrappers = document.querySelectorAll('.col-toggle');
+    var wrappers = doc.querySelectorAll('.col-toggle');
     for (var i = 0; i < wrappers.length; i += 1) {
       initWrapper(wrappers[i]);
     }
   }
 
-  document.addEventListener('click', function(event) {
+  doc.addEventListener('click', function(event) {
     var action = findAction(event.target || event.srcElement);
     if (!action) {
       return;
@@ -205,7 +219,7 @@ HIDE_COLUMNS_SCRIPT_BLOCK = """<script type=\"application/javascript\">(function
     }
   });
 
-  document.addEventListener('change', function(event) {
+  doc.addEventListener('change', function(event) {
     var checkbox = findCheckbox(event.target || event.srcElement);
     if (!checkbox || !findDropdown(checkbox)) {
       return;
@@ -221,13 +235,13 @@ HIDE_COLUMNS_SCRIPT_BLOCK = """<script type=\"application/javascript\">(function
     applyVisibility(wrapper, index, !!checkbox.checked);
   });
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initAll);
+  if (doc.readyState === 'loading') {
+    doc.addEventListener('DOMContentLoaded', initAll);
   } else {
     initAll();
   }
 
-  var observerTarget = document.documentElement || document.body;
+  var observerTarget = doc.documentElement || doc.body;
   if (observerTarget && observerTarget.ownerDocument) {
     new MutationObserver(function(mutations) {
       for (var m = 0; m < mutations.length; m += 1) {
@@ -250,9 +264,8 @@ HIDE_COLUMNS_SCRIPT_BLOCK = """<script type=\"application/javascript\">(function
       }
     }).observe(observerTarget, { childList: true, subtree: true });
   }
-})();</script>"""
-
-
+};
+"""
 
 
 _hide_column_assets_added = False
@@ -263,8 +276,28 @@ def ensure_hide_column_assets(rows: list[str]) -> None:
         global _hide_column_assets_added
         if _hide_column_assets_added:
                 return
-        rows.append(HIDE_COLUMNS_STYLE_BLOCK)
-        rows.append(HIDE_COLUMNS_SCRIPT_BLOCK)
+        append_tid_for_output(
+                create_new_tid_from_template(
+                        HIDE_COLUMNS_STYLE_TITLE,
+                        HIDE_COLUMNS_STYLE_TITLE,
+                        HIDE_COLUMNS_STYLE_TEXT,
+                        tags=["$:/tags/Stylesheet"],
+                        fields={"type": "text/vnd.tiddlywiki"},
+                ),
+                tid_list,
+        )
+        append_tid_for_output(
+                create_new_tid_from_template(
+                        HIDE_COLUMNS_SCRIPT_TITLE,
+                        HIDE_COLUMNS_SCRIPT_TITLE,
+                        HIDE_COLUMNS_SCRIPT_TEXT,
+                        fields={
+                                "type": "application/javascript",
+                                "module-type": "startup",
+                        },
+                ),
+                tid_list,
+        )
         _hide_column_assets_added = True
 
 

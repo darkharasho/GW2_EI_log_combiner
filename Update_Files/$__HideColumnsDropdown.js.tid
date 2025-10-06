@@ -3,20 +3,28 @@ creator: Drevarr
 modified: 20250101000000000
 modifier: Drevarr
 title: $:/GW2/HideColumnsDropdown
-tags: $:/tags/RawMarkup
 type: application/javascript
+module-type: startup
 
-<script type="application/javascript">
-(function(){
-    'use strict';
+exports.name = "gw2-hide-columns";
+exports.platforms = ["browser"];
+exports.after = ["startup"];
+exports.synchronous = true;
+
+exports.startup = function() {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+        return;
+    }
 
     if (window.gw2HideColumnsInit) {
         return;
     }
     window.gw2HideColumnsInit = true;
 
+    var doc = document;
+
     function closestWrapper(node) {
-        while (node && node !== document) {
+        while (node && node !== doc) {
             if (node.classList && node.classList.contains('col-toggle')) {
                 return node;
             }
@@ -26,7 +34,7 @@ type: application/javascript
     }
 
     function findAction(node) {
-        while (node && node !== document) {
+        while (node && node !== doc) {
             if (node.nodeType === 1 && node.classList && node.classList.contains('col-dropdown__action') && node.getAttribute('data-col-action')) {
                 return node;
             }
@@ -36,7 +44,7 @@ type: application/javascript
     }
 
     function findCheckbox(node) {
-        while (node && node !== document) {
+        while (node && node !== doc) {
             if (node.nodeType === 1 && node.tagName && node.tagName.toLowerCase() === 'input' && node.type === 'checkbox' && node.hasAttribute('data-col-index')) {
                 return node;
             }
@@ -46,7 +54,7 @@ type: application/javascript
     }
 
     function findDropdown(node) {
-        while (node && node !== document) {
+        while (node && node !== doc) {
             if (node.nodeType === 1 && node.classList && node.classList.contains('col-dropdown')) {
                 return node;
             }
@@ -118,8 +126,8 @@ type: application/javascript
             var evt = new Event('change', { bubbles: true });
             element.dispatchEvent(evt);
         } catch (error) {
-            if (typeof document.createEvent === 'function') {
-                var legacy = document.createEvent('Event');
+            if (typeof doc.createEvent === 'function') {
+                var legacy = doc.createEvent('Event');
                 legacy.initEvent('change', true, false);
                 element.dispatchEvent(legacy);
             }
@@ -135,13 +143,13 @@ type: application/javascript
     }
 
     function initAll() {
-        var wrappers = document.querySelectorAll('.col-toggle');
+        var wrappers = doc.querySelectorAll('.col-toggle');
         for (var i = 0; i < wrappers.length; i += 1) {
             initWrapper(wrappers[i]);
         }
     }
 
-    document.addEventListener('click', function(event) {
+    doc.addEventListener('click', function(event) {
         var action = findAction(event.target || event.srcElement);
         if (!action) {
             return;
@@ -162,7 +170,7 @@ type: application/javascript
         }
     });
 
-    document.addEventListener('change', function(event) {
+    doc.addEventListener('change', function(event) {
         var checkbox = findCheckbox(event.target || event.srcElement);
         if (!checkbox || !findDropdown(checkbox)) {
             return;
@@ -178,13 +186,13 @@ type: application/javascript
         applyVisibility(wrapper, index, !!checkbox.checked);
     });
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initAll);
+    if (doc.readyState === 'loading') {
+        doc.addEventListener('DOMContentLoaded', initAll);
     } else {
         initAll();
     }
 
-    var observerTarget = document.documentElement || document.body;
+    var observerTarget = doc.documentElement || doc.body;
     if (observerTarget && observerTarget.ownerDocument) {
         new MutationObserver(function(mutations) {
             for (var m = 0; m < mutations.length; m += 1) {
@@ -207,5 +215,4 @@ type: application/javascript
             }
         }).observe(observerTarget, { childList: true, subtree: true });
     }
-})();
-</script>
+};
