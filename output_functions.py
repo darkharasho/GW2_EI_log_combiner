@@ -16,6 +16,7 @@
 import config
 import json
 #import os
+import re
 import requests
 import sqlite3
 import xlsxwriter
@@ -235,13 +236,31 @@ _hide_column_assets_added = False
 
 
 def ensure_hide_column_assets(rows: list[str]) -> None:
-	"""Ensure the hide-column style and script blocks are included once."""
-	global _hide_column_assets_added
-	if _hide_column_assets_added:
-		return
-	rows.append(HIDE_COLUMNS_STYLE_BLOCK)
-	rows.append(HIDE_COLUMNS_SCRIPT_BLOCK)
-	_hide_column_assets_added = True
+        """Ensure the hide-column style and script blocks are included once."""
+        global _hide_column_assets_added
+        if _hide_column_assets_added:
+                return
+        rows.append(HIDE_COLUMNS_STYLE_BLOCK)
+        rows.append(HIDE_COLUMNS_SCRIPT_BLOCK)
+        _hide_column_assets_added = True
+
+
+def render_column_label(stat: str) -> str:
+        """Convert wiki-style column labels into HTML widgets for dropdown display."""
+
+        def replace_image(match: re.Match[str]) -> str:
+                width, alt, source = match.groups()
+                width_attr = f' width="{width}"' if width else ''
+                safe_alt = alt.replace('"', '&quot;')
+                return f"<$image source=\"{source}\" alt=\"{safe_alt}\"{width_attr}/>"
+
+        def replace_transclude(match: re.Match[str]) -> str:
+                name = match.group(1).strip()
+                return f"<$transclude tiddler=\"{name}\"/>" if name else ''
+
+        label = re.sub(r"\[img(?:\\s+width=(\\d+))?\\s+\[(.*?)\|(.*?)\]\]", replace_image, stat)
+        label = re.sub(r"\{\{([^{}]+)\}\}", replace_transclude, label)
+        return label
 
 
 def create_new_tid_from_template(
@@ -835,14 +854,15 @@ def build_category_summary_table(top_stats: dict, category_stats: dict, enable_h
 				"<summary class=\"col-dropdown__summary\">Hide Columns</summary>",
 				f"<div class=\"col-dropdown__menu\" style=\"{menu_style}\">",
 				f"<div class=\"col-dropdown__actions\" style=\"{actions_style}\">",
-				f"<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"select\" onclick=\"return gw2HideColumnsToggleAll(this,true);\" style=\"{button_style}\">Select all</button>",
-				f"<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"clear\" onclick=\"return gw2HideColumnsToggleAll(this,false);\" style=\"{button_style}\">Clear all</button>",
+				f"<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"select\" style=\"{button_style}\">Select all</button>",
+				f"<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"clear\" style=\"{button_style}\">Clear all</button>",
 				"</div>",
 				f"<div class=\"col-controls\" style=\"{controls_style}\">",
 			]
 			for column_index, stat in enumerate(column_control_list, start=4):
+				label_markup = render_column_label(stat)
 				hide_controls.append(
-					f"<label style=\"{label_style}\"><input type='checkbox' id='toggle-col{column_index}' data-col-index='{column_index}' checked style=\"{checkbox_style}\"> {stat}</label>"
+					f"<label style=\"{label_style}\"><input type='checkbox' id='toggle-col{column_index}' data-col-index='{column_index}' checked style=\"{checkbox_style}\"> {label_markup}</label>"
 				)
 			hide_controls.extend([
 				"</div>",
