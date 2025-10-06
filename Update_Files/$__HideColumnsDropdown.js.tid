@@ -6,6 +6,7 @@ title: $:/GW2/HideColumnsDropdown
 tags: $:/tags/RawMarkup
 type: application/javascript
 
+<script type="application/javascript">
 (function(){
     'use strict';
 
@@ -119,3 +120,4 @@ type: application/javascript
         });
     }).observe(document.documentElement, { childList: true, subtree: true });
 })();
+</script>
