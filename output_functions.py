@@ -137,7 +137,9 @@ exports.startup = function() {
       return;
     }
     var selector = '[data-col-key=\"' + key + '\"]';
-    var elements = wrapper.querySelectorAll(selector);
+    var tableArea = wrapper.querySelector('.col-toggletables');
+    var scope = tableArea || wrapper;
+    var elements = scope.querySelectorAll(selector);
     for (var i = 0; i < elements.length; i += 1) {
       var cell = findCell(elements[i]);
       if (cell) {
