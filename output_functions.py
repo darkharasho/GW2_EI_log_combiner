@@ -26,6 +26,253 @@ from collections import defaultdict
 tid_list = []
 
 
+HIDE_COLUMNS_STYLE_BLOCK = """<style class=\"gw2-hide-columns\">
+.col-toggle {
+  position: relative;
+  margin-bottom: 0.75em;
+}
+
+.col-dropdown {
+  position: relative;
+  display: inline-block;
+  font-size: 0.9em;
+  color: #eee;
+}
+
+.col-dropdown__summary {
+  list-style: none;
+  cursor: pointer;
+  background: #2c3034;
+  padding: 0.45em 0.95em;
+  border-radius: 0.5em;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  user-select: none;
+}
+
+.col-dropdown__summary::-webkit-details-marker {
+  display: none;
+}
+
+.col-dropdown__summary::after {
+  content: "▾";
+  font-size: 0.8em;
+  opacity: 0.8;
+}
+
+.col-dropdown[open] .col-dropdown__summary {
+  background: #363c41;
+}
+
+.col-dropdown[open] .col-dropdown__summary::after {
+  content: "▴";
+}
+
+.col-dropdown__menu {
+  position: absolute;
+  top: calc(100% + 0.35em);
+  right: 0;
+  background: #1f2326;
+  border: 1px solid #444;
+  border-radius: 0.6em;
+  padding: 0.85em 1.05em;
+  min-width: clamp(22em, 3vw + 24em, 36em);
+  box-shadow: 0 0.75em 1.8em rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85em;
+  z-index: 20;
+}
+
+.col-dropdown__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75em;
+}
+
+.col-dropdown__action {
+  background: #2c3034;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 0.45em;
+  padding: 0.35em 1.05em;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.col-dropdown__action:hover,
+.col-dropdown__action:focus-visible {
+  background: #3a3f44;
+  outline: none;
+}
+
+.col-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85em 1.2em;
+}
+
+.col-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  background: #2c3034;
+  padding: 0.5em 1.15em;
+  border-radius: 0.5em;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  white-space: nowrap;
+}
+
+.col-controls label:hover {
+  background: #3b4045;
+}
+
+.col-controls input[type=\"checkbox\"] {
+  accent-color: #6cf;
+}
+
+.col-toggletables {
+  width: 100%;
+}
+</style>"""
+
+
+HIDE_COLUMNS_SCRIPT_BLOCK = """<script>(function(){
+  'use strict';
+
+  if (window.gw2HideColumnsInit) {
+    return;
+  }
+  window.gw2HideColumnsInit = true;
+
+  function getWrapper(element) {
+    return element.closest ? element.closest('.col-toggle') : null;
+  }
+
+  function getTableRows(wrapper) {
+    if (!wrapper) {
+      return [];
+    }
+    var container = wrapper.querySelector('.col-toggletables');
+    if (!container) {
+      return [];
+    }
+    return Array.from(container.querySelectorAll('tr'));
+  }
+
+  function updateColumnVisibility(wrapper, index, isVisible) {
+    if (!wrapper || !index) {
+      return;
+    }
+    getTableRows(wrapper).forEach(function(row) {
+      var cell = row.children[index - 1];
+      if (cell) {
+        cell.style.display = isVisible ? '' : 'none';
+      }
+    });
+  }
+
+  function syncWrapper(wrapper) {
+    if (!wrapper || !wrapper.querySelector('.col-dropdown')) {
+      return;
+    }
+    wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]').forEach(function(box) {
+      var index = Number(box.getAttribute('data-col-index'));
+      if (!Number.isNaN(index)) {
+        updateColumnVisibility(wrapper, index, box.checked);
+      }
+    });
+  }
+
+  function handleCheckboxChange(event) {
+    var checkbox = event.target;
+    if (!(checkbox instanceof HTMLInputElement)) {
+      return;
+    }
+    if (!checkbox.matches('input[type="checkbox"][data-col-index]')) {
+      return;
+    }
+    if (!checkbox.closest('.col-dropdown')) {
+      return;
+    }
+    var wrapper = getWrapper(checkbox);
+    if (!wrapper) {
+      return;
+    }
+    var index = Number(checkbox.getAttribute('data-col-index'));
+    if (Number.isNaN(index)) {
+      return;
+    }
+    updateColumnVisibility(wrapper, index, checkbox.checked);
+  }
+
+  function handleActionClick(event) {
+    var button = event.target.closest('.col-dropdown__action[data-col-action]');
+    if (!button) {
+      return;
+    }
+    event.preventDefault();
+    var wrapper = getWrapper(button);
+    if (!wrapper) {
+      return;
+    }
+    var shouldCheck = button.getAttribute('data-col-action') === 'select';
+    wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]').forEach(function(box) {
+      if (box.checked !== shouldCheck) {
+        box.checked = shouldCheck;
+        box.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+  }
+
+  function initExisting(root) {
+    (root || document).querySelectorAll('.col-toggle').forEach(syncWrapper);
+  }
+
+  document.addEventListener('change', handleCheckboxChange);
+  document.addEventListener('click', handleActionClick);
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      initExisting(document);
+    });
+  } else {
+    initExisting(document);
+  }
+
+  new MutationObserver(function(mutations) {
+    mutations.forEach(function(mutation) {
+      mutation.addedNodes.forEach(function(node) {
+        if (!(node instanceof Element)) {
+          return;
+        }
+        if (node.matches && node.matches('.col-toggle')) {
+          syncWrapper(node);
+        } else if (node.querySelectorAll) {
+          node.querySelectorAll('.col-toggle').forEach(syncWrapper);
+        }
+      });
+    });
+  }).observe(document.documentElement, { childList: true, subtree: true });
+})();</script>"""
+
+
+_hide_column_assets_added = False
+
+
+def ensure_hide_column_assets(rows: list[str]) -> None:
+	"""Ensure the hide-column style and script blocks are included once."""
+	global _hide_column_assets_added
+	if _hide_column_assets_added:
+		return
+	rows.append(HIDE_COLUMNS_STYLE_BLOCK)
+	rows.append(HIDE_COLUMNS_SCRIPT_BLOCK)
+	_hide_column_assets_added = True
+
+
 def create_new_tid_from_template(
 	title: str,
 	caption: str,
@@ -564,7 +811,9 @@ def build_category_summary_table(top_stats: dict, category_stats: dict, enable_h
 	time_stats = ["resurrectTime", "condiCleanseTime", "condiCleanseTimeSelf", "boonStripsTime", "removedStunDuration", "boonStripDownContributionTime"]
 	defense_hits = {"damageTakenCount": 'damageTaken', "conditionDamageTakenCount": 'conditionDamageTaken', "powerDamageTakenCount": 'powerDamageTaken', "downedDamageTakenCount": 'downedDamageTaken', "damageBarrierCount": 'damageBarrier'}
 	rows = []
-	
+
+	if enable_hide_columns:
+		ensure_hide_column_assets(rows)
 
 	rows.append("<div class='col-toggle'>")
 	if enable_hide_columns:
