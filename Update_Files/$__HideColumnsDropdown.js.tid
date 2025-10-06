@@ -12,207 +12,219 @@ exports.after = ["startup"];
 exports.synchronous = true;
 
 exports.startup = function() {
-    if (typeof window === 'undefined' || typeof document === 'undefined') {
-        return;
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return;
+  }
+
+  if (window.gw2HideColumnsInit) {
+    return;
+  }
+  window.gw2HideColumnsInit = true;
+
+  var doc = document;
+
+  function closestWrapper(node) {
+    while (node && node !== doc) {
+      if (node.classList && node.classList.contains('col-toggle')) {
+        return node;
+      }
+      node = node.parentNode;
     }
+    return null;
+  }
 
-    if (window.gw2HideColumnsInit) {
-        return;
+  function findAction(node) {
+    while (node && node !== doc) {
+      if (node.nodeType === 1 && node.classList && node.classList.contains('col-dropdown__action') && node.getAttribute('data-col-action')) {
+        return node;
+      }
+      node = node.parentNode;
     }
-    window.gw2HideColumnsInit = true;
+    return null;
+  }
 
-    var doc = document;
+  function findCheckbox(node) {
+    while (node && node !== doc) {
+      if (node.nodeType === 1 && node.tagName && node.tagName.toLowerCase() === 'input' && node.type === 'checkbox' && node.hasAttribute('data-col-key')) {
+        return node;
+      }
+      node = node.parentNode;
+    }
+    return null;
+  }
 
-    function closestWrapper(node) {
-        while (node && node !== doc) {
-            if (node.classList && node.classList.contains('col-toggle')) {
-                return node;
-            }
-            node = node.parentNode;
+  function findDropdown(node) {
+    while (node && node !== doc) {
+      if (node.nodeType === 1 && node.classList && node.classList.contains('col-dropdown')) {
+        return node;
+      }
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  function getKey(element) {
+    return element ? element.getAttribute('data-col-key') : null;
+  }
+
+  function findCell(node) {
+    while (node && node !== doc) {
+      if (node.nodeType === 1) {
+        var tagName = node.tagName ? node.tagName.toLowerCase() : '';
+        if (tagName === 'td' || tagName === 'th') {
+          return node;
         }
-        return null;
+      }
+      node = node.parentNode;
     }
+    return null;
+  }
 
-    function findAction(node) {
-        while (node && node !== doc) {
-            if (node.nodeType === 1 && node.classList && node.classList.contains('col-dropdown__action') && node.getAttribute('data-col-action')) {
-                return node;
-            }
-            node = node.parentNode;
-        }
-        return null;
+  function applyVisibility(wrapper, key, isVisible) {
+    if (!wrapper || !key) {
+      return;
     }
-
-    function findCheckbox(node) {
-        while (node && node !== doc) {
-            if (node.nodeType === 1 && node.tagName && node.tagName.toLowerCase() === 'input' && node.type === 'checkbox' && node.hasAttribute('data-col-index')) {
-                return node;
-            }
-            node = node.parentNode;
-        }
-        return null;
+    var selector = '[data-col-key="' + key + '"]';
+    var elements = wrapper.querySelectorAll(selector);
+    for (var i = 0; i < elements.length; i += 1) {
+      var cell = findCell(elements[i]);
+      if (cell) {
+        cell.style.display = isVisible ? '' : 'none';
+      }
     }
+  }
 
-    function findDropdown(node) {
-        while (node && node !== doc) {
-            if (node.nodeType === 1 && node.classList && node.classList.contains('col-dropdown')) {
-                return node;
-            }
-            node = node.parentNode;
-        }
-        return null;
+  function syncWrapper(wrapper) {
+    if (!wrapper) {
+      return;
     }
-
-    function parseIndex(element) {
-        if (!element) {
-            return null;
-        }
-        var raw = element.getAttribute('data-col-index');
-        if (raw === null) {
-            return null;
-        }
-        var value = parseInt(raw, 10);
-        return isNaN(value) ? null : value;
+    var boxes = wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-key]');
+    for (var i = 0; i < boxes.length; i += 1) {
+      var key = getKey(boxes[i]);
+      if (key) {
+        applyVisibility(wrapper, key, !!boxes[i].checked);
+      }
     }
+  }
 
-    function getTableRows(wrapper) {
+  function dispatchChange(element) {
+    if (!element) {
+      return;
+    }
+    try {
+      var evt = new Event('change', { bubbles: true });
+      element.dispatchEvent(evt);
+    } catch (error) {
+      if (typeof doc.createEvent === 'function') {
+        var legacy = doc.createEvent('Event');
+        legacy.initEvent('change', true, false);
+        element.dispatchEvent(legacy);
+      }
+    }
+  }
+
+  function initWrapper(wrapper) {
+    if (!wrapper || wrapper.__gw2HideColumnsReady) {
+      return;
+    }
+    wrapper.__gw2HideColumnsReady = true;
+    syncWrapper(wrapper);
+  }
+
+  function initAll() {
+    var wrappers = doc.querySelectorAll('.col-toggle');
+    for (var i = 0; i < wrappers.length; i += 1) {
+      initWrapper(wrappers[i]);
+    }
+  }
+
+  doc.addEventListener('click', function(event) {
+    var action = findAction(event.target || event.srcElement);
+    if (!action) {
+      return;
+    }
+    event.preventDefault();
+    var wrapper = closestWrapper(action);
+    if (!wrapper) {
+      return;
+    }
+    var shouldCheck = action.getAttribute('data-col-action') === 'select';
+    var boxes = wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-key]');
+    for (var i = 0; i < boxes.length; i += 1) {
+      var box = boxes[i];
+      if (!!box.checked !== shouldCheck) {
+        box.checked = shouldCheck;
+        dispatchChange(box);
+      }
+    }
+  });
+
+  doc.addEventListener('change', function(event) {
+    var checkbox = findCheckbox(event.target || event.srcElement);
+    if (!checkbox || !findDropdown(checkbox)) {
+      return;
+    }
+    var wrapper = closestWrapper(checkbox);
+    if (!wrapper) {
+      return;
+    }
+    var key = getKey(checkbox);
+    if (!key) {
+      return;
+    }
+    applyVisibility(wrapper, key, !!checkbox.checked);
+  });
+
+  if (doc.readyState === 'loading') {
+    doc.addEventListener('DOMContentLoaded', initAll);
+  } else {
+    initAll();
+  }
+
+  var observerTarget = doc.documentElement || doc.body;
+  if (observerTarget && observerTarget.ownerDocument) {
+    new MutationObserver(function(mutations) {
+      var queue = [];
+
+      function enqueue(wrapper) {
         if (!wrapper) {
-            return [];
+          return;
         }
-        var container = wrapper.querySelector('.col-toggletables');
-        if (!container) {
-            return [];
+        if (queue.indexOf(wrapper) === -1) {
+          queue.push(wrapper);
         }
-        return container.querySelectorAll('tr');
-    }
+      }
 
-    function applyVisibility(wrapper, index, isVisible) {
-        if (!wrapper || index === null) {
-            return;
-        }
-        var rows = getTableRows(wrapper);
-        for (var r = 0; r < rows.length; r += 1) {
-            var row = rows[r];
-            if (!row || !row.children || index >= row.children.length) {
-                continue;
+      for (var m = 0; m < mutations.length; m += 1) {
+        var mutation = mutations[m];
+        var added = mutation.addedNodes;
+        for (var a = 0; a < added.length; a += 1) {
+          var node = added[a];
+          if (!node || node.nodeType !== 1) {
+            continue;
+          }
+          if (node.classList && node.classList.contains('col-toggle')) {
+            initWrapper(node);
+            enqueue(node);
+            continue;
+          }
+          if (node.querySelectorAll) {
+            var wrappers = node.querySelectorAll('.col-toggle');
+            for (var w = 0; w < wrappers.length; w += 1) {
+              initWrapper(wrappers[w]);
+              enqueue(wrappers[w]);
             }
-            var cell = row.children[index];
-            if (cell) {
-                cell.style.display = isVisible ? '' : 'none';
-            }
+          }
+          var ancestor = closestWrapper(node);
+          if (ancestor) {
+            enqueue(ancestor);
+          }
         }
-    }
+      }
 
-    function syncWrapper(wrapper) {
-        if (!wrapper) {
-            return;
-        }
-        var boxes = wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]');
-        for (var i = 0; i < boxes.length; i += 1) {
-            var box = boxes[i];
-            var index = parseIndex(box);
-            if (index === null) {
-                continue;
-            }
-            applyVisibility(wrapper, index, !!box.checked);
-        }
-    }
-
-    function dispatchChange(element) {
-        if (!element) {
-            return;
-        }
-        try {
-            var evt = new Event('change', { bubbles: true });
-            element.dispatchEvent(evt);
-        } catch (error) {
-            if (typeof doc.createEvent === 'function') {
-                var legacy = doc.createEvent('Event');
-                legacy.initEvent('change', true, false);
-                element.dispatchEvent(legacy);
-            }
-        }
-    }
-
-    function initWrapper(wrapper) {
-        if (!wrapper || wrapper.__gw2HideColumnsReady) {
-            return;
-        }
-        wrapper.__gw2HideColumnsReady = true;
-        syncWrapper(wrapper);
-    }
-
-    function initAll() {
-        var wrappers = doc.querySelectorAll('.col-toggle');
-        for (var i = 0; i < wrappers.length; i += 1) {
-            initWrapper(wrappers[i]);
-        }
-    }
-
-    doc.addEventListener('click', function(event) {
-        var action = findAction(event.target || event.srcElement);
-        if (!action) {
-            return;
-        }
-        event.preventDefault();
-        var wrapper = closestWrapper(action);
-        if (!wrapper) {
-            return;
-        }
-        var shouldCheck = action.getAttribute('data-col-action') === 'select';
-        var boxes = wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]');
-        for (var i = 0; i < boxes.length; i += 1) {
-            var box = boxes[i];
-            if (!!box.checked !== shouldCheck) {
-                box.checked = shouldCheck;
-                dispatchChange(box);
-            }
-        }
-    });
-
-    doc.addEventListener('change', function(event) {
-        var checkbox = findCheckbox(event.target || event.srcElement);
-        if (!checkbox || !findDropdown(checkbox)) {
-            return;
-        }
-        var wrapper = closestWrapper(checkbox);
-        if (!wrapper) {
-            return;
-        }
-        var index = parseIndex(checkbox);
-        if (index === null) {
-            return;
-        }
-        applyVisibility(wrapper, index, !!checkbox.checked);
-    });
-
-    if (doc.readyState === 'loading') {
-        doc.addEventListener('DOMContentLoaded', initAll);
-    } else {
-        initAll();
-    }
-
-    var observerTarget = doc.documentElement || doc.body;
-    if (observerTarget && observerTarget.ownerDocument) {
-        new MutationObserver(function(mutations) {
-            for (var m = 0; m < mutations.length; m += 1) {
-                var mutation = mutations[m];
-                var added = mutation.addedNodes;
-                for (var a = 0; a < added.length; a += 1) {
-                    var node = added[a];
-                    if (!node || node.nodeType !== 1) {
-                        continue;
-                    }
-                    if (node.classList && node.classList.contains('col-toggle')) {
-                        initWrapper(node);
-                    } else if (node.querySelectorAll) {
-                        var wrappers = node.querySelectorAll('.col-toggle');
-                        for (var w = 0; w < wrappers.length; w += 1) {
-                            initWrapper(wrappers[w]);
-                        }
-                    }
-                }
-            }
-        }).observe(observerTarget, { childList: true, subtree: true });
-    }
+      for (var i = 0; i < queue.length; i += 1) {
+        syncWrapper(queue[i]);
+      }
+    }).observe(observerTarget, { childList: true, subtree: true });
+  }
 };

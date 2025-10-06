@@ -18,6 +18,7 @@ import json
 #import os
 import re
 import html
+from dataclasses import dataclass
 import requests
 import sqlite3
 import xlsxwriter
@@ -32,22 +33,24 @@ HIDE_COLUMNS_STYLE_TITLE = "$:/GW2/HideColumnsStyles"
 
 
 HIDE_COLUMNS_STYLE_TEXT = """.col-toggle { position: relative; margin-bottom: 0.75em; }
-.col-dropdown { position: relative; display: inline-block; font-size: 0.9em; color: #eee; }
-.col-dropdown__button { display: inline-flex; align-items: center; gap: 0.55em; padding: 0.55em 1.05em; cursor: pointer; background: #2c3034; color: inherit; border: 1px solid rgba(255,255,255,0.12); border-radius: 0.6em; user-select: none; font: inherit; list-style: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); }
+.col-dropdown { position: relative; display: inline-block; font-size: 0.9em; color: #eee; width: 100%; }
+.col-dropdown__button { display: inline-flex; align-items: center; gap: 0.55em; padding: 0.55em 1.05em; cursor: pointer; background: #2c3034; color: inherit; border: 1px solid rgba(255,255,255,0.12); border-radius: 0.6em; user-select: none; font: inherit; list-style: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); width: max-content; max-width: 100%; }
 .col-dropdown__button::-webkit-details-marker { display: none; }
 .col-dropdown__button:focus-visible { outline: 2px solid #6cf; outline-offset: 2px; }
 .col-dropdown__button .col-dropdown__chevron { transition: transform 0.2s ease; font-size: 0.85em; opacity: 0.8; }
 .col-dropdown[open] .col-dropdown__button { background: #363c41; }
 .col-dropdown[open] .col-dropdown__button .col-dropdown__chevron { transform: rotate(180deg); }
-.col-dropdown__menu { position: absolute; top: calc(100% + 0.35em); right: 0; background: #1f2326; border: 1px solid #444; border-radius: 0.6em; padding: 1em 1.2em; min-width: clamp(24em, 3vw + 26em, 38em); box-shadow: 0 0.75em 1.8em rgba(0,0,0,0.35); display: none; flex-direction: column; gap: 1em; z-index: 20; }
+.col-dropdown__menu { position: absolute; top: calc(100% + 0.35em); left: 0; right: 0; background: #1f2326; border: 1px solid #444; border-radius: 0.6em; padding: 1em 1.2em 1.2em; min-width: clamp(28em, 75vw, 68em); box-shadow: 0 0.75em 1.8em rgba(0,0,0,0.35); display: none; flex-direction: column; gap: 1em; z-index: 20; }
 .col-dropdown[open] .col-dropdown__menu { display: flex; }
-.col-dropdown__actions { display: flex; justify-content: flex-end; gap: 0.75em; }
+.col-dropdown__actions { display: flex; justify-content: flex-end; gap: 0.75em; flex-wrap: wrap; }
 .col-dropdown__action { background: #2c3034; color: #eee; border: 1px solid #555; border-radius: 0.45em; padding: 0.45em 1.15em; cursor: pointer; transition: background 0.2s ease; font: inherit; }
 .col-dropdown__action:hover, .col-dropdown__action:focus-visible { background: #3a3f44; outline: none; }
-.col-controls { display: flex; flex-wrap: wrap; gap: 0.95em 1.4em; align-items: flex-start; }
-.col-controls label { display: inline-flex; align-items: center; gap: 0.7em; background: #2c3034; padding: 0.65em 1.3em; border-radius: 0.5em; cursor: pointer; transition: background 0.2s ease; white-space: nowrap; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
+.col-controls-wrap { width: 100%; overflow-x: auto; padding-bottom: 0.4em; }
+.col-controls { width: 100%; border-collapse: separate; border-spacing: 0.4em 0; table-layout: auto; min-width: 100%; }
+.col-controls td { padding: 0; white-space: nowrap; }
+.col-controls label { display: inline-flex; align-items: center; gap: 0.7em; background: #2c3034; padding: 0.65em 1.3em; border-radius: 0.5em; cursor: pointer; transition: background 0.2s ease; width: 100%; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
 .col-controls label:hover { background: #3b4045; }
-.col-controls input[type="checkbox"] { accent-color: #6cf; width: 1.1em; height: 1.1em; }
+.col-controls input[type=\"checkbox\"] { accent-color: #6cf; width: 1.1em; height: 1.1em; }
 .col-toggletables { width: 100%; }
 """
 
@@ -55,9 +58,9 @@ HIDE_COLUMNS_STYLE_TEXT = """.col-toggle { position: relative; margin-bottom: 0.
 HIDE_COLUMNS_SCRIPT_TITLE = "$:/GW2/HideColumnsDropdown"
 
 
-HIDE_COLUMNS_SCRIPT_TEXT = """exports.name = "gw2-hide-columns";
-exports.platforms = ["browser"];
-exports.after = ["startup"];
+HIDE_COLUMNS_SCRIPT_TEXT = """exports.name = \"gw2-hide-columns\";
+exports.platforms = [\"browser\"];
+exports.after = [\"startup\"];
 exports.synchronous = true;
 
 exports.startup = function() {
@@ -94,7 +97,7 @@ exports.startup = function() {
 
   function findCheckbox(node) {
     while (node && node !== doc) {
-      if (node.nodeType === 1 && node.tagName && node.tagName.toLowerCase() === 'input' && node.type === 'checkbox' && node.hasAttribute('data-col-index')) {
+      if (node.nodeType === 1 && node.tagName && node.tagName.toLowerCase() === 'input' && node.type === 'checkbox' && node.hasAttribute('data-col-key')) {
         return node;
       }
       node = node.parentNode;
@@ -112,96 +115,31 @@ exports.startup = function() {
     return null;
   }
 
-  function parseIndex(element) {
-    if (!element) {
-      return null;
-    }
-    var raw = element.getAttribute('data-col-index');
-    if (raw === null) {
-      return null;
-    }
-    var value = parseInt(raw, 10);
-    return isNaN(value) ? null : value;
+  function getKey(element) {
+    return element ? element.getAttribute('data-col-key') : null;
   }
 
-  function resetWrapperCache(wrapper) {
-    if (!wrapper) {
-      return;
-    }
-    wrapper.__gw2ColBaseOffset = null;
-    wrapper.__gw2ColBaseOffsetColumns = null;
-  }
-
-  function computeBaseOffset(wrapper) {
-    if (!wrapper) {
-      return 0;
-    }
-    var cachedColumns = wrapper.__gw2ColBaseOffsetColumns;
-    var cachedOffset = wrapper.__gw2ColBaseOffset;
-    var container = wrapper.querySelector('.col-toggletables');
-    var table = container ? container.querySelector('table') : null;
-    if (!table) {
-      wrapper.__gw2ColBaseOffset = null;
-      wrapper.__gw2ColBaseOffsetColumns = null;
-      return 0;
-    }
-    var headerRow = table.querySelector('thead tr');
-    if (!headerRow) {
-      headerRow = table.querySelector('tr');
-    }
-    var columnCount = headerRow && headerRow.children ? headerRow.children.length : 0;
-    if (!columnCount) {
-      wrapper.__gw2ColBaseOffset = null;
-      wrapper.__gw2ColBaseOffsetColumns = null;
-      return 0;
-    }
-    if (typeof cachedOffset === 'number' && cachedColumns === columnCount) {
-      return cachedOffset;
-    }
-    var toggleCount = wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]').length;
-    var offset = columnCount - toggleCount;
-    if (offset < 0) {
-      offset = 0;
-    }
-    wrapper.__gw2ColBaseOffset = offset;
-    wrapper.__gw2ColBaseOffsetColumns = columnCount;
-    return offset;
-  }
-
-  function resolveColumnIndex(wrapper, relativeIndex) {
-    if (relativeIndex === null) {
-      return null;
-    }
-    var offset = computeBaseOffset(wrapper);
-    return offset + relativeIndex;
-  }
-
-  function getTableRows(wrapper) {
-    if (!wrapper) {
-      return [];
-    }
-    var container = wrapper.querySelector('.col-toggletables');
-    if (!container) {
-      return [];
-    }
-    return container.querySelectorAll('tr');
-  }
-
-  function applyVisibility(wrapper, index, isVisible) {
-    if (!wrapper || index === null) {
-      return;
-    }
-    var columnIndex = resolveColumnIndex(wrapper, index);
-    if (columnIndex === null) {
-      return;
-    }
-    var rows = getTableRows(wrapper);
-    for (var r = 0; r < rows.length; r += 1) {
-      var row = rows[r];
-      if (!row || !row.children || columnIndex >= row.children.length) {
-        continue;
+  function findCell(node) {
+    while (node && node !== doc) {
+      if (node.nodeType === 1) {
+        var tagName = node.tagName ? node.tagName.toLowerCase() : '';
+        if (tagName === 'td' || tagName === 'th') {
+          return node;
+        }
       }
-      var cell = row.children[columnIndex];
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  function applyVisibility(wrapper, key, isVisible) {
+    if (!wrapper || !key) {
+      return;
+    }
+    var selector = '[data-col-key=\"' + key + '\"]';
+    var elements = wrapper.querySelectorAll(selector);
+    for (var i = 0; i < elements.length; i += 1) {
+      var cell = findCell(elements[i]);
       if (cell) {
         cell.style.display = isVisible ? '' : 'none';
       }
@@ -212,15 +150,12 @@ exports.startup = function() {
     if (!wrapper) {
       return;
     }
-    computeBaseOffset(wrapper);
-    var boxes = wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]');
+    var boxes = wrapper.querySelectorAll('.col-dropdown input[type=\"checkbox\"][data-col-key]');
     for (var i = 0; i < boxes.length; i += 1) {
-      var box = boxes[i];
-      var index = parseIndex(box);
-      if (index === null) {
-        continue;
+      var key = getKey(boxes[i]);
+      if (key) {
+        applyVisibility(wrapper, key, !!boxes[i].checked);
       }
-      applyVisibility(wrapper, index, !!box.checked);
     }
   }
 
@@ -241,23 +176,17 @@ exports.startup = function() {
   }
 
   function initWrapper(wrapper) {
-    if (!wrapper) {
-      return false;
-    }
-    if (wrapper.__gw2HideColumnsReady) {
-      return false;
+    if (!wrapper || wrapper.__gw2HideColumnsReady) {
+      return;
     }
     wrapper.__gw2HideColumnsReady = true;
-    return true;
+    syncWrapper(wrapper);
   }
 
   function initAll() {
     var wrappers = doc.querySelectorAll('.col-toggle');
     for (var i = 0; i < wrappers.length; i += 1) {
-      var wrapper = wrappers[i];
-      initWrapper(wrapper);
-      resetWrapperCache(wrapper);
-      syncWrapper(wrapper);
+      initWrapper(wrappers[i]);
     }
   }
 
@@ -272,7 +201,7 @@ exports.startup = function() {
       return;
     }
     var shouldCheck = action.getAttribute('data-col-action') === 'select';
-    var boxes = wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]');
+    var boxes = wrapper.querySelectorAll('.col-dropdown input[type=\"checkbox\"][data-col-key]');
     for (var i = 0; i < boxes.length; i += 1) {
       var box = boxes[i];
       if (!!box.checked !== shouldCheck) {
@@ -291,11 +220,11 @@ exports.startup = function() {
     if (!wrapper) {
       return;
     }
-    var index = parseIndex(checkbox);
-    if (index === null) {
+    var key = getKey(checkbox);
+    if (!key) {
       return;
     }
-    applyVisibility(wrapper, index, !!checkbox.checked);
+    applyVisibility(wrapper, key, !!checkbox.checked);
   });
 
   if (doc.readyState === 'loading') {
@@ -309,7 +238,7 @@ exports.startup = function() {
     new MutationObserver(function(mutations) {
       var queue = [];
 
-      function mark(wrapper) {
+      function enqueue(wrapper) {
         if (!wrapper) {
           return;
         }
@@ -328,33 +257,272 @@ exports.startup = function() {
           }
           if (node.classList && node.classList.contains('col-toggle')) {
             initWrapper(node);
-            mark(node);
+            enqueue(node);
             continue;
           }
           if (node.querySelectorAll) {
             var wrappers = node.querySelectorAll('.col-toggle');
             for (var w = 0; w < wrappers.length; w += 1) {
-              var wrapperNode = wrappers[w];
-              initWrapper(wrapperNode);
-              mark(wrapperNode);
+              initWrapper(wrappers[w]);
+              enqueue(wrappers[w]);
             }
           }
           var ancestor = closestWrapper(node);
           if (ancestor) {
-            mark(ancestor);
+            enqueue(ancestor);
           }
         }
       }
 
       for (var i = 0; i < queue.length; i += 1) {
-        var wrapper = queue[i];
-        resetWrapperCache(wrapper);
-        syncWrapper(wrapper);
+        syncWrapper(queue[i]);
       }
     }).observe(observerTarget, { childList: true, subtree: true });
   }
 };
 """
+
+@dataclass
+class ColumnDescriptor:
+        key: str
+        label_html: str
+        stat: str
+        kind: str
+        reference_stat: str | None = None
+        secondary_stat: str | None = None
+
+
+def _per_second(value: float, fight_time: float) -> float:
+        return value / fight_time if fight_time else 0.0
+
+
+def _per_minute(value: float, fight_time: float) -> float:
+        return value / (fight_time / 60) if fight_time else 0.0
+
+
+def format_count_value(value: float, toggle: str, fight_time: float) -> str:
+        if toggle == "Stat/1s":
+                return f"{_per_second(value, fight_time):.2f}"
+        if toggle == "Stat/60s":
+                return f"{_per_minute(value, fight_time):.2f}"
+        return f"{value:,.0f}"
+
+
+def format_time_value(value: float, toggle: str, fight_time: float) -> str:
+        if toggle == "Stat/1s":
+                return f"{_per_second(value, fight_time):.2f}"
+        if toggle == "Stat/60s":
+                return f"{_per_minute(value, fight_time):.2f}"
+        return f"{value:,.1f}"
+
+
+def format_barrier_value(value: float, toggle: str, fight_time: float) -> str:
+        if toggle == "Stat/1s":
+                return f"{_per_second(value, fight_time):,.2f}"
+        if toggle == "Stat/60s":
+                return f"{_per_minute(value, fight_time):,.2f}"
+        return f"{value:,.0f}"
+
+
+def build_column_descriptors(
+        category_stats: dict,
+        pct_stats: dict[str, str],
+        time_stats: list[str],
+        defense_hits: dict[str, str],
+) -> list[ColumnDescriptor]:
+        descriptors: list[ColumnDescriptor] = []
+
+        for stat in category_stats:
+                if stat == "damage":
+                        descriptors.append(
+                                ColumnDescriptor(
+                                        key="damage",
+                                        label_html=render_column_label("{{totalDmg}}"),
+                                        stat=stat,
+                                        kind="count",
+                                )
+                        )
+                elif stat == "connectedDamageCount":
+                        descriptors.append(
+                                ColumnDescriptor(
+                                        key="connectedDamageCount",
+                                        label_html=render_column_label("{{connectedDamageCount}}"),
+                                        stat=stat,
+                                        kind="count",
+                                )
+                        )
+                elif stat == "connectedDirectDamageCount":
+                        descriptors.append(
+                                ColumnDescriptor(
+                                        key="connectedDirectDamageCount",
+                                        label_html=render_column_label("{{connectedDirectDamageCount}}"),
+                                        stat=stat,
+                                        kind="direct_hits",
+                                        secondary_stat="connectedDamageCount",
+                                )
+                        )
+                        descriptors.append(
+                                ColumnDescriptor(
+                                        key="connectedIndirectDamageCount",
+                                        label_html=render_column_label("{{connectedIndirectDamageCount}}"),
+                                        stat=stat,
+                                        kind="indirect_hits",
+                                        secondary_stat="connectedDamageCount",
+                                )
+                        )
+                elif stat == "boonStripDownContribution":
+                        descriptors.append(
+                                ColumnDescriptor(
+                                        key="boonStripDownContribution",
+                                        label_html=render_column_label("{{boonStrips}}{{downed}}"),
+                                        stat=stat,
+                                        kind="count",
+                                )
+                        )
+                elif stat == "boonStripDownContributionTime":
+                        descriptors.append(
+                                ColumnDescriptor(
+                                        key="boonStripDownContributionTime",
+                                        label_html=render_column_label("{{boonStripsTime}}{{downed}}"),
+                                        stat=stat,
+                                        kind="time",
+                                )
+                        )
+                elif stat in defense_hits:
+                        label = f"{{{{{defense_hits[stat]}}}}}[img width=16 [Hits|hits.png]]"
+                        descriptors.append(
+                                ColumnDescriptor(
+                                        key=stat,
+                                        label_html=render_column_label(label),
+                                        stat=stat,
+                                        kind="count",
+                                )
+                        )
+                elif stat == "appliedCrowdControlDownContribution":
+                        descriptors.append(
+                                ColumnDescriptor(
+                                        key="appliedCrowdControlDownContribution",
+                                        label_html=render_column_label("{{appliedCrowdControl}}{{downed}}"),
+                                        stat=stat,
+                                        kind="count",
+                                )
+                        )
+                elif stat == "appliedCrowdControlDurationDownContribution":
+                        descriptors.append(
+                                ColumnDescriptor(
+                                        key="appliedCrowdControlDurationDownContribution",
+                                        label_html=render_column_label("{{appliedCrowdControlDuration}}{{downed}}"),
+                                        stat=stat,
+                                        kind="count",
+                                )
+                        )
+                elif stat == "damageBarrier":
+                        descriptors.append(
+                                ColumnDescriptor(
+                                        key="damageBarrier",
+                                        label_html=render_column_label("{{damageBarrier}}"),
+                                        stat=stat,
+                                        kind="barrier",
+                                )
+                        )
+                        descriptors.append(
+                                ColumnDescriptor(
+                                        key="damageBarrierPercent",
+                                        label_html=render_column_label("{{damageBarrier}} %"),
+                                        stat=stat,
+                                        kind="barrier_percent",
+                                        secondary_stat="damageTaken",
+                                )
+                        )
+                else:
+                        kind = "percent" if stat in pct_stats else "time" if stat in time_stats else "count"
+                        descriptors.append(
+                                ColumnDescriptor(
+                                        key=stat,
+                                        label_html=render_column_label(f"{{{{{stat}}}}}"),
+                                        stat=stat,
+                                        kind=kind,
+                                        reference_stat=pct_stats.get(stat),
+                                )
+                        )
+
+        return descriptors
+
+
+def compute_column_value(
+        descriptor: ColumnDescriptor,
+        player: dict,
+        category_stats: dict,
+        toggle: str,
+        fight_time: float,
+) -> str:
+        category = category_stats.get(descriptor.stat)
+        if not category:
+                return "0"
+        stat_bucket = player.get(category, {})
+        base_value = stat_bucket.get(descriptor.stat, 0)
+
+        if descriptor.stat in {"receivedCrowdControlDuration", "appliedCrowdControlDuration"}:
+                base_value = base_value / 1000
+
+        if descriptor.kind == "percent":
+                divisor_stat = descriptor.reference_stat or ""
+                divisor_value = stat_bucket.get(divisor_stat, 0)
+                percentage = (base_value / divisor_value * 100) if divisor_value else 0.0
+                return f"{percentage:.2f}%"
+
+        if descriptor.kind == "time":
+                return format_time_value(base_value, toggle, fight_time)
+
+        if descriptor.kind == "direct_hits":
+                return format_count_value(base_value, toggle, fight_time)
+
+        if descriptor.kind == "indirect_hits":
+                total_hits = stat_bucket.get(descriptor.secondary_stat or "", 0)
+                indirect = max(total_hits - base_value, 0)
+                return format_count_value(indirect, toggle, fight_time)
+
+        if descriptor.kind == "barrier":
+                return format_barrier_value(base_value, toggle, fight_time)
+
+        if descriptor.kind == "barrier_percent":
+                damage_taken = stat_bucket.get(descriptor.secondary_stat or "", 0)
+                percentage = (base_value / damage_taken * 100) if damage_taken else 0.0
+                return f"{percentage:.1f}%"
+
+        return format_count_value(base_value, toggle, fight_time)
+
+
+def _per_second(value: float, fight_time: float) -> float:
+        return value / fight_time if fight_time else 0.0
+
+
+def _per_minute(value: float, fight_time: float) -> float:
+        return value / (fight_time / 60) if fight_time else 0.0
+
+
+def format_count_value(value: float, toggle: str, fight_time: float) -> str:
+        if toggle == "Stat/1s":
+                return f"{_per_second(value, fight_time):.2f}"
+        if toggle == "Stat/60s":
+                return f"{_per_minute(value, fight_time):.2f}"
+        return f"{value:,.0f}"
+
+
+def format_time_value(value: float, toggle: str, fight_time: float) -> str:
+        if toggle == "Stat/1s":
+                return f"{_per_second(value, fight_time):.2f}"
+        if toggle == "Stat/60s":
+                return f"{_per_minute(value, fight_time):.2f}"
+        return f"{value:,.1f}"
+
+
+def format_barrier_value(value: float, toggle: str, fight_time: float) -> str:
+        if toggle == "Stat/1s":
+                return f"{_per_second(value, fight_time):,.2f}"
+        if toggle == "Stat/60s":
+                return f"{_per_minute(value, fight_time):,.2f}"
+        return f"{value:,.0f}"
 
 
 _hide_column_assets_added = False
@@ -937,178 +1105,117 @@ def build_damage_summary_table(top_stats: dict, caption: str, tid_date_time: str
 		)
 
 def build_category_summary_table(top_stats: dict, category_stats: dict, enable_hide_columns: bool, caption: str, tid_date_time: str) -> None:
-	"""
-	Print a table of defense stats for all players in the log.
+        """
+        Print a table of defense stats for all players in the log.
 
-	Args:
-		top_stats (dict): The top_stats dictionary containing the overall stats.
-		category_stats (dict): A dictionary that maps a category name to a stat name.
+        Args:
+                top_stats (dict): The top_stats dictionary containing the overall stats.
+                category_stats (dict): A dictionary that maps a category name to a stat name.
 
-	Returns:
-		None
-	"""
-	pct_stats = {
-		"criticalRate": "critableDirectDamageCount", "flankingRate":"connectedDirectDamageCount", "glanceRate":"connectedDirectDamageCount", "againstMovingRate": "connectedDamageCount"
-	}
-	time_stats = ["resurrectTime", "condiCleanseTime", "condiCleanseTimeSelf", "boonStripsTime", "removedStunDuration", "boonStripDownContributionTime"]
-	defense_hits = {"damageTakenCount": 'damageTaken', "conditionDamageTakenCount": 'conditionDamageTaken', "powerDamageTakenCount": 'powerDamageTaken', "downedDamageTakenCount": 'downedDamageTaken', "damageBarrierCount": 'damageBarrier'}
-	rows = []
+        Returns:
+                None
+        """
+        pct_stats = {
+                "criticalRate": "critableDirectDamageCount",
+                "flankingRate": "connectedDirectDamageCount",
+                "glanceRate": "connectedDirectDamageCount",
+                "againstMovingRate": "connectedDamageCount",
+        }
+        time_stats = [
+                "resurrectTime",
+                "condiCleanseTime",
+                "condiCleanseTimeSelf",
+                "boonStripsTime",
+                "removedStunDuration",
+                "boonStripDownContributionTime",
+        ]
+        defense_hits = {
+                "damageTakenCount": "damageTaken",
+                "conditionDamageTakenCount": "conditionDamageTaken",
+                "powerDamageTakenCount": "powerDamageTaken",
+                "downedDamageTakenCount": "downedDamageTaken",
+                "damageBarrierCount": "damageBarrier",
+        }
+        rows: list[str] = []
 
-	if enable_hide_columns:
-		ensure_hide_column_assets(rows)
+        if enable_hide_columns:
+                ensure_hide_column_assets(rows)
 
-	rows.append("<div class='col-toggle'>")
-	if enable_hide_columns:
-		column_control_list = []
-		for stat in category_stats:
-			if stat =="damage":
-				column_control_list.append("{{totalDmg}}")
-			elif stat == "connectedDamageCount":
-				column_control_list.append("{{connectedDamageCount}}")
-			elif stat == "connectedDirectDamageCount":
-				column_control_list.append("{{connectedDirectDamageCount}}")
-				column_control_list.append("{{connectedIndirectDamageCount}}")
-			elif stat == "boonStripDownContribution":
-				column_control_list.append("{{boonStrips}}{{downed}}")
-			elif stat == "boonStripDownContributionTime":
-				column_control_list.append("{{boonStripsTime}}{{downed}}")
-			elif stat in defense_hits:
-				column_control_list.append(f"{{{{{defense_hits[stat]}}}}}[img width=16 [Hits|hits.png]]")
-			elif stat == "appliedCrowdControlDownContribution":
-				column_control_list.append("{{appliedCrowdControl}}{{downed}}")
-			elif stat == "appliedCrowdControlDurationDownContribution":
-				column_control_list.append("{{appliedCrowdControlDuration}}{{downed}}")
-			elif stat == "damageBarrier":
-				column_control_list.append(f"{{{{{stat}}}}}")
-				column_control_list.append(f"{{{{{stat}}}}} %")
-			else:
-				column_control_list.append(f"{{{{{stat}}}}}")
+        rows.append("<div class='col-toggle'>")
+        column_descriptors = build_column_descriptors(category_stats, pct_stats, time_stats, defense_hits)
 
-		if column_control_list:
-			hide_controls = [
-				"<details class=\"col-dropdown\">"
-				"<summary class=\"col-dropdown__button\">Hide Columns <span class=\"col-dropdown__chevron\" aria-hidden=\"true\">▾</span></summary>"
-				"<div class=\"col-dropdown__menu\">"
-				"<div class=\"col-dropdown__actions\">"
-				"<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"select\">Select all</button>"
-				"<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"clear\">Clear all</button>"
-				"</div>"
-				"<div class=\"col-controls\">"
-			]
-			for column_index, stat in enumerate(column_control_list):
-				label_markup = render_column_label(stat)
-				hide_controls.append(
-					f"<label><input type='checkbox' data-col-index='{column_index}' checked> {label_markup}</label>"
-				)
-			hide_controls.extend([
-				"</div>"
-				"</div>"
-				"</details>"
-			])
-			rows.append("\n".join(hide_controls))
+        if enable_hide_columns and column_descriptors:
+                hide_controls = [
+                        "<details class=\"col-dropdown\">",
+                        "<summary class=\"col-dropdown__button\">Hide Columns <span class=\"col-dropdown__chevron\" aria-hidden=\"true\">▾</span></summary>",
+                        "<div class=\"col-dropdown__menu\">",
+                        "<div class=\"col-dropdown__actions\">",
+                        "<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"select\">Select all</button>",
+                        "<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"clear\">Clear all</button>",
+                        "</div>",
+                        "<div class=\"col-controls-wrap\">",
+                        "<table class=\"col-controls\"><tr>",
+                ]
+                for descriptor in column_descriptors:
+                        hide_controls.append(
+                                f"<td><label><input type='checkbox' data-col-key='{descriptor.key}' checked> {descriptor.label_html}</label></td>"
+                        )
+                hide_controls.extend([
+                        "</tr></table>",
+                        "</div>",
+                        "</div>",
+                        "</details>",
+                ])
+                rows.append("\n".join(hide_controls))
 
-	rows.append('<div class="col-toggletables" style="overflow-y: auto; width: 100%; overflow-x:auto;">\n\n')
-	for toggle in ["Total", "Stat/1s", "Stat/60s"]:
-		rows.append(f'<$reveal stateTitle=<<currentTiddler>> stateField="category_radio" type="match" text="{toggle}" animate="yes">\n')
-		# Build the table header
-		header = "|thead-dark table-caption-top table-hover sortable|k\n"
-		header += "|!Party |!Name | !Prof | !{{FightTime}} |"
-		for stat in category_stats:
-			if stat =="damage":
-				header += " !{{totalDmg}} |"
-			elif stat == "connectedDamageCount":
-				header += " !{{connectedDamageCount}} |"
-			elif stat == "connectedDirectDamageCount":
-				header += " !{{connectedDirectDamageCount}} | !{{connectedIndirectDamageCount}} |"
-			elif stat == "boonStripDownContribution":
-				header += " !{{boonStrips}}{{downed}} |"
-			elif stat == "boonStripDownContributionTime":
-				header += " !{{boonStripsTime}}{{downed}} |"
-			elif stat in defense_hits:
-				header += " !{{"+f"{defense_hits[stat]}"+"}}"+"[img width=16 [Hits|hits.png]] |"
-			elif stat == "appliedCrowdControlDownContribution":
-				header += " !{{appliedCrowdControl}}{{downed}} |"
-			elif stat == "appliedCrowdControlDurationDownContribution":
-				header += " !{{appliedCrowdControlDuration}}{{downed}} |"
-			elif stat == "damageBarrier":
-				header += " !{{"+f"{stat}"+"}} | !{{"+f"{stat}"+"}} % |"
-			else:
-				header += " !{{"+f"{stat}"+"}} |"
-		header += "h"
+        rows.append('<div class="col-toggletables" style="overflow-y: auto; width: 100%; overflow-x:auto;">\n\n')
+        for toggle in ["Total", "Stat/1s", "Stat/60s"]:
+                rows.append(
+                        f'<$reveal stateTitle=<<currentTiddler>> stateField="category_radio" type="match" text="{toggle}" animate="yes">\n'
+                )
+                header = "|thead-dark table-caption-top table-hover sortable|k\n"
+                header += "|!Party |!Name | !Prof | !{{FightTime}} |"
+                for descriptor in column_descriptors:
+                        header += f" !<span data-col-key='{descriptor.key}'>{descriptor.label_html}</span> |"
+                header += "h"
+                rows.append(header)
 
-		rows.append(header)
+                for player in top_stats["player"].values():
+                        fight_time = player["active_time"] / 1000
+                        if fight_time == 0:
+                                continue
+                        account = player["account"]
+                        name = player["name"]
+                        tt_name = f'<span data-tooltip="{account}">{name}</span>'
+                        row = (
+                                f"| { player['last_party']} |{tt_name} | {{{{{player['profession']}}}}} {player['profession'][:3]} |"
+                                f" {fight_time:,.1f}|"
+                        )
 
-		# Build the table body
-		for player in top_stats["player"].values():
-			fight_time = player["active_time"] / 1000
-			if fight_time == 0:
-				continue
-			account = player["account"]
-			name = player["name"]
-			tt_name = f'<span data-tooltip="{account}">{name}</span>'
-			row = f"| { player['last_party']} |{tt_name} | {{{{{player['profession']}}}}} {player['profession'][:3]} | {fight_time:,.1f}|"
-			
-			for stat, category in category_stats.items():
-				stat_value = player[category].get(stat, 0)
-				if stat in ["receivedCrowdControlDuration","appliedCrowdControlDuration"]:
-					stat_value = stat_value / 1000
+                        for descriptor in column_descriptors:
+                                value = compute_column_value(descriptor, player, category_stats, toggle, fight_time)
+                                row += f" <span data-col-key='{descriptor.key}'>{value}</span>|"
 
-				#if stat == "connectedDirectDamageCount":
-				#	total_hits = player[category].get("connectedDamageCount", 0)
-				#	stat_value = f"{stat_value} | {total_hits - stat_value}"
+                        rows.append(row)
 
-				if stat in pct_stats:
-					divisor_value = player[category].get(pct_stats[stat], 0)
-					if divisor_value == 0:
-						divisor_value = 1
-					stat_value_percentage = round((stat_value / divisor_value) * 100, 1)
-					stat_value = f"{stat_value_percentage:.2f}%"
-				elif stat in time_stats:
-					if toggle == "Stat/1s":
-						stat_value = f"{stat_value/fight_time:.2f}"
-					elif toggle == "Stat/60s":
-						stat_value = f"{stat_value/(fight_time/60):.2f}"
-					else:
-						stat_value = f"{stat_value:,.1f}"
-				elif stat == "connectedDirectDamageCount":
-					total_hits = player[category].get("connectedDamageCount", 0)
-					if toggle == "Stat/1s":
-						stat_value = f"{stat_value/fight_time:.2f}| {(total_hits-stat_value)/fight_time:.2f}"
-					elif toggle == "Stat/60s":
-						stat_value = f"{stat_value/(fight_time/60):.2f}| {(total_hits-stat_value)/(fight_time/60):.2f}"
-					else:
-						stat_value = f"{stat_value:,}| {(total_hits-stat_value):,}"
-				elif stat == "damageBarrier":
-					player_damage_Taken = player[category].get("damageTaken", 0)
-					barrier_percentage = round((stat_value / player_damage_Taken) * 100, 1) if player_damage_Taken != 0 else 0
-					if toggle == "Stat/1s":
-						stat_value = f"{stat_value/fight_time:,.2f}| {barrier_percentage:.1f}%"
-					elif toggle == "Stat/60s":
-						stat_value = f"{stat_value/(fight_time/60):,.2f}| {barrier_percentage:.1f}%"
-					else:
-						stat_value = f"{stat_value:,}| {barrier_percentage:.1f}%"
-				else:
-					if toggle == "Stat/1s":
-						stat_value = f"{stat_value/fight_time:,.2f}"
-					elif toggle == "Stat/60s":
-						stat_value = f"{stat_value/(fight_time/60):,.2f}"
-					else:
-						stat_value = f"{stat_value:,}"
-				row += f" {stat_value}|"
+                rows.append(
+                        f'|<$radio field="category_radio" value="Total"> Total  </$radio> - <$radio field="category_radio" value="Stat/1s"> Stat/1s  </$radio> - <$radio field="category_radio" value="Stat/60s"> Stat/60s  </$radio> - {caption} Table|c'
+                )
+                rows.append("\n</$reveal>")
 
-			rows.append(row)
-		rows.append(f'|<$radio field="category_radio" value="Total"> Total  </$radio> - <$radio field="category_radio" value="Stat/1s"> Stat/1s  </$radio> - <$radio field="category_radio" value="Stat/60s"> Stat/60s  </$radio> - {caption} Table|c')
-		rows.append("\n</$reveal>")
+        rows.append("\n</div>")
+        rows.append("\n</div>")
+        tid_text = "\n".join(rows)
 
-	rows.append("\n</div>")
-	rows.append("\n</div>")
-	#push table to tid_list for output
-	tid_text = "\n".join(rows)
+        append_tid_for_output(
+                create_new_tid_from_template(
+                        f"{tid_date_time}-{caption.replace(' ', '-')}", caption, tid_text, fields={"category_radio": "Total"}
+                ),
+                tid_list,
+        )
 
-	append_tid_for_output(
-		create_new_tid_from_template(f"{tid_date_time}-{caption.replace(' ', '-')}", caption, tid_text, fields={"category_radio": "Total"}),
-		tid_list
-		)
+
+
 
 def build_boon_summary(top_stats: dict, boons: dict, category: str, buff_data: dict, tid_date_time: str, boon_type = None) -> None:
 	"""Print a table of boon uptime stats for all players in the log."""
