@@ -124,6 +124,58 @@ exports.startup = function() {
     return isNaN(value) ? null : value;
   }
 
+  function resetWrapperCache(wrapper) {
+    if (!wrapper) {
+      return;
+    }
+    wrapper.__gw2ColBaseOffset = null;
+    wrapper.__gw2ColBaseOffsetColumns = null;
+  }
+
+  function computeBaseOffset(wrapper) {
+    if (!wrapper) {
+      return 0;
+    }
+    var cachedColumns = wrapper.__gw2ColBaseOffsetColumns;
+    var cachedOffset = wrapper.__gw2ColBaseOffset;
+    var container = wrapper.querySelector('.col-toggletables');
+    var table = container ? container.querySelector('table') : null;
+    if (!table) {
+      wrapper.__gw2ColBaseOffset = null;
+      wrapper.__gw2ColBaseOffsetColumns = null;
+      return 0;
+    }
+    var headerRow = table.querySelector('thead tr');
+    if (!headerRow) {
+      headerRow = table.querySelector('tr');
+    }
+    var columnCount = headerRow && headerRow.children ? headerRow.children.length : 0;
+    if (!columnCount) {
+      wrapper.__gw2ColBaseOffset = null;
+      wrapper.__gw2ColBaseOffsetColumns = null;
+      return 0;
+    }
+    if (typeof cachedOffset === 'number' && cachedColumns === columnCount) {
+      return cachedOffset;
+    }
+    var toggleCount = wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]').length;
+    var offset = columnCount - toggleCount;
+    if (offset < 0) {
+      offset = 0;
+    }
+    wrapper.__gw2ColBaseOffset = offset;
+    wrapper.__gw2ColBaseOffsetColumns = columnCount;
+    return offset;
+  }
+
+  function resolveColumnIndex(wrapper, relativeIndex) {
+    if (relativeIndex === null) {
+      return null;
+    }
+    var offset = computeBaseOffset(wrapper);
+    return offset + relativeIndex;
+  }
+
   function getTableRows(wrapper) {
     if (!wrapper) {
       return [];
@@ -139,13 +191,17 @@ exports.startup = function() {
     if (!wrapper || index === null) {
       return;
     }
+    var columnIndex = resolveColumnIndex(wrapper, index);
+    if (columnIndex === null) {
+      return;
+    }
     var rows = getTableRows(wrapper);
     for (var r = 0; r < rows.length; r += 1) {
       var row = rows[r];
-      if (!row || !row.children || index >= row.children.length) {
+      if (!row || !row.children || columnIndex >= row.children.length) {
         continue;
       }
-      var cell = row.children[index];
+      var cell = row.children[columnIndex];
       if (cell) {
         cell.style.display = isVisible ? '' : 'none';
       }
@@ -156,6 +212,7 @@ exports.startup = function() {
     if (!wrapper) {
       return;
     }
+    computeBaseOffset(wrapper);
     var boxes = wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]');
     for (var i = 0; i < boxes.length; i += 1) {
       var box = boxes[i];
@@ -184,17 +241,23 @@ exports.startup = function() {
   }
 
   function initWrapper(wrapper) {
-    if (!wrapper || wrapper.__gw2HideColumnsReady) {
-      return;
+    if (!wrapper) {
+      return false;
+    }
+    if (wrapper.__gw2HideColumnsReady) {
+      return false;
     }
     wrapper.__gw2HideColumnsReady = true;
-    syncWrapper(wrapper);
+    return true;
   }
 
   function initAll() {
     var wrappers = doc.querySelectorAll('.col-toggle');
     for (var i = 0; i < wrappers.length; i += 1) {
-      initWrapper(wrappers[i]);
+      var wrapper = wrappers[i];
+      initWrapper(wrapper);
+      resetWrapperCache(wrapper);
+      syncWrapper(wrapper);
     }
   }
 
@@ -244,6 +307,17 @@ exports.startup = function() {
   var observerTarget = doc.documentElement || doc.body;
   if (observerTarget && observerTarget.ownerDocument) {
     new MutationObserver(function(mutations) {
+      var queue = [];
+
+      function mark(wrapper) {
+        if (!wrapper) {
+          return;
+        }
+        if (queue.indexOf(wrapper) === -1) {
+          queue.push(wrapper);
+        }
+      }
+
       for (var m = 0; m < mutations.length; m += 1) {
         var mutation = mutations[m];
         var added = mutation.addedNodes;
@@ -254,13 +328,28 @@ exports.startup = function() {
           }
           if (node.classList && node.classList.contains('col-toggle')) {
             initWrapper(node);
-          } else if (node.querySelectorAll) {
+            mark(node);
+            continue;
+          }
+          if (node.querySelectorAll) {
             var wrappers = node.querySelectorAll('.col-toggle');
             for (var w = 0; w < wrappers.length; w += 1) {
-              initWrapper(wrappers[w]);
+              var wrapperNode = wrappers[w];
+              initWrapper(wrapperNode);
+              mark(wrapperNode);
             }
           }
+          var ancestor = closestWrapper(node);
+          if (ancestor) {
+            mark(ancestor);
+          }
         }
+      }
+
+      for (var i = 0; i < queue.length; i += 1) {
+        var wrapper = queue[i];
+        resetWrapperCache(wrapper);
+        syncWrapper(wrapper);
       }
     }).observe(observerTarget, { childList: true, subtree: true });
   }
@@ -906,7 +995,7 @@ def build_category_summary_table(top_stats: dict, category_stats: dict, enable_h
 				"</div>"
 				"<div class=\"col-controls\">"
 			]
-			for column_index, stat in enumerate(column_control_list, start=4):
+			for column_index, stat in enumerate(column_control_list):
 				label_markup = render_column_label(stat)
 				hide_controls.append(
 					f"<label><input type='checkbox' data-col-index='{column_index}' checked> {label_markup}</label>"
