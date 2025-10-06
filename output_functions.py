@@ -29,10 +29,10 @@ from collections import defaultdict
 tid_list = []
 
 
-HIDE_COLUMNS_STYLE_TITLE = "$:/GW2/HideColumnsStyles"
+_hide_column_helpers_injected = False
 
-
-HIDE_COLUMNS_STYLE_TEXT = """.col-toggle { position: relative; margin-bottom: 0.75em; }
+HIDE_COLUMNS_BASE_STYLE = """<style>
+.col-toggle { position: relative; margin-bottom: 0.75em; }
 .col-dropdown { position: relative; display: inline-block; font-size: 0.9em; color: #eee; width: 100%; }
 .col-dropdown__button { display: inline-flex; align-items: center; gap: 0.55em; padding: 0.55em 1.05em; cursor: pointer; background: #2c3034; color: inherit; border: 1px solid rgba(255,255,255,0.12); border-radius: 0.6em; user-select: none; font: inherit; list-style: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); width: max-content; max-width: 100%; }
 .col-dropdown__button::-webkit-details-marker { display: none; }
@@ -46,36 +46,28 @@ HIDE_COLUMNS_STYLE_TEXT = """.col-toggle { position: relative; margin-bottom: 0.
 .col-dropdown__action { background: #2c3034; color: #eee; border: 1px solid #555; border-radius: 0.45em; padding: 0.45em 1.15em; cursor: pointer; transition: background 0.2s ease; font: inherit; }
 .col-dropdown__action:hover, .col-dropdown__action:focus-visible { background: #3a3f44; outline: none; }
 .col-controls-wrap { width: 100%; overflow-x: auto; padding-bottom: 0.4em; }
-.col-controls { width: 100%; border-collapse: separate; border-spacing: 0.4em 0; table-layout: auto; min-width: 100%; }
+.col-controls { width: 100%; border-collapse: separate; border-spacing: 0.4em 0; table-layout: fixed; min-width: 100%; }
 .col-controls td { padding: 0; white-space: nowrap; }
 .col-controls label { display: inline-flex; align-items: center; gap: 0.7em; background: #2c3034; padding: 0.65em 1.3em; border-radius: 0.5em; cursor: pointer; transition: background 0.2s ease; width: 100%; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
 .col-controls label:hover { background: #3b4045; }
 .col-controls input[type=\"checkbox\"] { accent-color: #6cf; width: 1.1em; height: 1.1em; }
 .col-toggletables { width: 100%; }
-"""
+</style>"""
 
-
-HIDE_COLUMNS_SCRIPT_TITLE = "$:/GW2/HideColumnsDropdown"
-
-
-HIDE_COLUMNS_SCRIPT_TEXT = """exports.name = \"gw2-hide-columns\";
-exports.platforms = [\"browser\"];
-exports.after = [\"startup\"];
-exports.synchronous = true;
-
-exports.startup = function() {
+HIDE_COLUMNS_BASE_SCRIPT = """<script>
+(function() {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     return;
   }
 
-  if (window.gw2HideColumnsInit) {
+  if (window.gw2HideColumnActionsInit) {
     return;
   }
-  window.gw2HideColumnsInit = true;
+  window.gw2HideColumnActionsInit = true;
 
   var doc = document;
 
-  function closestWrapper(node) {
+  function findWrapper(node) {
     while (node && node !== doc) {
       if (node.classList && node.classList.contains('col-toggle')) {
         return node;
@@ -87,119 +79,12 @@ exports.startup = function() {
 
   function findAction(node) {
     while (node && node !== doc) {
-      if (node.nodeType === 1 && node.classList && node.classList.contains('col-dropdown__action') && node.getAttribute('data-col-action')) {
+      if (node.classList && node.classList.contains('col-dropdown__action')) {
         return node;
       }
       node = node.parentNode;
     }
     return null;
-  }
-
-  function findCheckbox(node) {
-    while (node && node !== doc) {
-      if (node.nodeType === 1 && node.tagName && node.tagName.toLowerCase() === 'input' && node.type === 'checkbox' && node.hasAttribute('data-col-key')) {
-        return node;
-      }
-      node = node.parentNode;
-    }
-    return null;
-  }
-
-  function findDropdown(node) {
-    while (node && node !== doc) {
-      if (node.nodeType === 1 && node.classList && node.classList.contains('col-dropdown')) {
-        return node;
-      }
-      node = node.parentNode;
-    }
-    return null;
-  }
-
-  function getKey(element) {
-    return element ? element.getAttribute('data-col-key') : null;
-  }
-
-  function findCell(node) {
-    while (node && node !== doc) {
-      if (node.nodeType === 1) {
-        var tagName = node.tagName ? node.tagName.toLowerCase() : '';
-        if (tagName === 'td' || tagName === 'th') {
-          return node;
-        }
-        if (node.classList && node.classList.length) {
-          for (var i = 0; i < node.classList.length; i += 1) {
-            var cls = node.classList[i];
-            if (cls && cls.indexOf('tc-table') === 0 && (cls.indexOf('cell') !== -1 || cls.indexOf('header') !== -1 || cls.indexOf('col') !== -1)) {
-              return node;
-            }
-          }
-        }
-      }
-      node = node.parentNode;
-    }
-    return null;
-  }
-
-  function applyVisibility(wrapper, key, isVisible) {
-    if (!wrapper || !key) {
-      return;
-    }
-    var selector = '[data-col-key=\"' + key + '\"]';
-    var tableArea = wrapper.querySelector('.col-toggletables');
-    var scope = tableArea || wrapper;
-    var elements = scope.querySelectorAll(selector);
-    for (var i = 0; i < elements.length; i += 1) {
-      var cell = findCell(elements[i]);
-      if (cell) {
-        cell.style.display = isVisible ? '' : 'none';
-      } else if (elements[i] && elements[i].style) {
-        elements[i].style.display = isVisible ? '' : 'none';
-      }
-    }
-  }
-
-  function syncWrapper(wrapper) {
-    if (!wrapper) {
-      return;
-    }
-    var boxes = wrapper.querySelectorAll('.col-dropdown input[type=\"checkbox\"][data-col-key]');
-    for (var i = 0; i < boxes.length; i += 1) {
-      var key = getKey(boxes[i]);
-      if (key) {
-        applyVisibility(wrapper, key, !!boxes[i].checked);
-      }
-    }
-  }
-
-  function dispatchChange(element) {
-    if (!element) {
-      return;
-    }
-    try {
-      var evt = new Event('change', { bubbles: true });
-      element.dispatchEvent(evt);
-    } catch (error) {
-      if (typeof doc.createEvent === 'function') {
-        var legacy = doc.createEvent('Event');
-        legacy.initEvent('change', true, false);
-        element.dispatchEvent(legacy);
-      }
-    }
-  }
-
-  function initWrapper(wrapper) {
-    if (!wrapper || wrapper.__gw2HideColumnsReady) {
-      return;
-    }
-    wrapper.__gw2HideColumnsReady = true;
-    syncWrapper(wrapper);
-  }
-
-  function initAll() {
-    var wrappers = doc.querySelectorAll('.col-toggle');
-    for (var i = 0; i < wrappers.length; i += 1) {
-      initWrapper(wrappers[i]);
-    }
   }
 
   doc.addEventListener('click', function(event) {
@@ -208,91 +93,61 @@ exports.startup = function() {
       return;
     }
     event.preventDefault();
-    var wrapper = closestWrapper(action);
+    var wrapper = findWrapper(action);
     if (!wrapper) {
       return;
     }
     var shouldCheck = action.getAttribute('data-col-action') === 'select';
-    var boxes = wrapper.querySelectorAll('.col-dropdown input[type=\"checkbox\"][data-col-key]');
+    var boxes = wrapper.querySelectorAll('input[type=\"checkbox\"][data-col-index]');
     for (var i = 0; i < boxes.length; i += 1) {
       var box = boxes[i];
       if (!!box.checked !== shouldCheck) {
         box.checked = shouldCheck;
-        dispatchChange(box);
+        try {
+          var evt = new Event('change', { bubbles: true });
+          box.dispatchEvent(evt);
+        } catch (error) {
+          if (typeof doc.createEvent === 'function') {
+            var legacy = doc.createEvent('Event');
+            legacy.initEvent('change', true, false);
+            box.dispatchEvent(legacy);
+          }
+        }
       }
     }
   });
+})();
+</script>"""
 
-  doc.addEventListener('change', function(event) {
-    var checkbox = findCheckbox(event.target || event.srcElement);
-    if (!checkbox || !findDropdown(checkbox)) {
-      return;
-    }
-    var wrapper = closestWrapper(checkbox);
-    if (!wrapper) {
-      return;
-    }
-    var key = getKey(checkbox);
-    if (!key) {
-      return;
-    }
-    applyVisibility(wrapper, key, !!checkbox.checked);
-  });
 
-  if (doc.readyState === 'loading') {
-    doc.addEventListener('DOMContentLoaded', initAll);
-  } else {
-    initAll();
-  }
+def ensure_hide_column_helpers(rows: list[str]) -> None:
+        """Add the shared hide-column dropdown style and script once."""
 
-  var observerTarget = doc.documentElement || doc.body;
-  if (observerTarget && observerTarget.ownerDocument) {
-    new MutationObserver(function(mutations) {
-      var queue = [];
+        global _hide_column_helpers_injected
+        if _hide_column_helpers_injected:
+                return
 
-      function enqueue(wrapper) {
-        if (!wrapper) {
-          return;
-        }
-        if (queue.indexOf(wrapper) === -1) {
-          queue.push(wrapper);
-        }
-      }
+        rows.append(HIDE_COLUMNS_BASE_STYLE)
+        rows.append(HIDE_COLUMNS_BASE_SCRIPT)
+        _hide_column_helpers_injected = True
 
-      for (var m = 0; m < mutations.length; m += 1) {
-        var mutation = mutations[m];
-        var added = mutation.addedNodes;
-        for (var a = 0; a < added.length; a += 1) {
-          var node = added[a];
-          if (!node || node.nodeType !== 1) {
-            continue;
-          }
-          if (node.classList && node.classList.contains('col-toggle')) {
-            initWrapper(node);
-            enqueue(node);
-            continue;
-          }
-          if (node.querySelectorAll) {
-            var wrappers = node.querySelectorAll('.col-toggle');
-            for (var w = 0; w < wrappers.length; w += 1) {
-              initWrapper(wrappers[w]);
-              enqueue(wrappers[w]);
-            }
-          }
-          var ancestor = closestWrapper(node);
-          if (ancestor) {
-            enqueue(ancestor);
-          }
-        }
-      }
 
-      for (var i = 0; i < queue.length; i += 1) {
-        syncWrapper(queue[i]);
-      }
-    }).observe(observerTarget, { childList: true, subtree: true });
-  }
-};
-"""
+def build_column_visibility_style(prefix: str, column_indices: list[int]) -> str:
+        lines = ["<style>"]
+        for index in column_indices:
+                lines.append(
+                        ".col-toggle[data-toggle-prefix=\"{prefix}\"]:has(input[data-col-index=\"{index}\"]:not(:checked)) "
+                        ".col-toggletables tr > *:nth-child({index}) {{\n  display: none;\n}}".format(prefix=prefix, index=index)
+                )
+        lines.append("</style>")
+        return "\n".join(lines)
+
+
+def slugify_toggle_prefix(text: str) -> str:
+        slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+        return slug or "columns"
+
+
 
 @dataclass
 class ColumnDescriptor:
@@ -535,39 +390,6 @@ def format_barrier_value(value: float, toggle: str, fight_time: float) -> str:
         if toggle == "Stat/60s":
                 return f"{_per_minute(value, fight_time):,.2f}"
         return f"{value:,.0f}"
-
-
-_hide_column_assets_added = False
-
-
-def ensure_hide_column_assets(rows: list[str]) -> None:
-        """Ensure the hide-column style and script blocks are included once."""
-        global _hide_column_assets_added
-        if _hide_column_assets_added:
-                return
-        append_tid_for_output(
-                create_new_tid_from_template(
-                        HIDE_COLUMNS_STYLE_TITLE,
-                        HIDE_COLUMNS_STYLE_TITLE,
-                        HIDE_COLUMNS_STYLE_TEXT,
-                        tags=["$:/tags/Stylesheet"],
-                        fields={"type": "text/vnd.tiddlywiki"},
-                ),
-                tid_list,
-        )
-        append_tid_for_output(
-                create_new_tid_from_template(
-                        HIDE_COLUMNS_SCRIPT_TITLE,
-                        HIDE_COLUMNS_SCRIPT_TITLE,
-                        HIDE_COLUMNS_SCRIPT_TEXT,
-                        fields={
-                                "type": "application/javascript",
-                                "module-type": "startup",
-                        },
-                ),
-                tid_list,
-        )
-        _hide_column_assets_added = True
 
 
 def render_column_label(stat: str) -> str:
@@ -1149,14 +971,21 @@ def build_category_summary_table(top_stats: dict, category_stats: dict, enable_h
                 "damageBarrierCount": "damageBarrier",
         }
         rows: list[str] = []
-
-        if enable_hide_columns:
-                ensure_hide_column_assets(rows)
-
-        rows.append("<div class='col-toggle'>")
         column_descriptors = build_column_descriptors(category_stats, pct_stats, time_stats, defense_hits)
+        indexed_descriptors = [(5 + index, descriptor) for index, descriptor in enumerate(column_descriptors)]
+        toggle_prefix = slugify_toggle_prefix(caption)
 
-        if enable_hide_columns and column_descriptors:
+        if enable_hide_columns and indexed_descriptors:
+                ensure_hide_column_helpers(rows)
+                column_style = build_column_visibility_style(
+                        toggle_prefix,
+                        [column_index for column_index, _ in indexed_descriptors],
+                )
+                rows.append(column_style)
+
+        rows.append(f"<div class='col-toggle' data-toggle-prefix='{toggle_prefix}'>")
+
+        if enable_hide_columns and indexed_descriptors:
                 hide_controls = [
                         "<details class=\"col-dropdown\">",
                         "<summary class=\"col-dropdown__button\">Hide Columns <span class=\"col-dropdown__chevron\" aria-hidden=\"true\">▾</span></summary>",
@@ -1168,9 +997,9 @@ def build_category_summary_table(top_stats: dict, category_stats: dict, enable_h
                         "<div class=\"col-controls-wrap\">",
                         "<table class=\"col-controls\"><tr>",
                 ]
-                for descriptor in column_descriptors:
+                for column_index, descriptor in indexed_descriptors:
                         hide_controls.append(
-                                f"<td><label><input type='checkbox' data-col-key='{descriptor.key}' checked> {descriptor.label_html}</label></td>"
+                                f"<td><label><input type='checkbox' data-col-index='{column_index}' checked> {descriptor.label_html}</label></td>"
                         )
                 hide_controls.extend([
                         "</tr></table>",
@@ -1187,8 +1016,8 @@ def build_category_summary_table(top_stats: dict, category_stats: dict, enable_h
                 )
                 header = "|thead-dark table-caption-top table-hover sortable|k\n"
                 header += "|!Party |!Name | !Prof | !{{FightTime}} |"
-                for descriptor in column_descriptors:
-                        header += f" !<span data-col-key='{descriptor.key}'>{descriptor.label_html}</span> |"
+                for column_index, descriptor in indexed_descriptors:
+                        header += f" !<span data-col-index='{column_index}'>{descriptor.label_html}</span> |"
                 header += "h"
                 rows.append(header)
 
@@ -1204,9 +1033,9 @@ def build_category_summary_table(top_stats: dict, category_stats: dict, enable_h
                                 f" {fight_time:,.1f}|"
                         )
 
-                        for descriptor in column_descriptors:
+                        for column_index, descriptor in indexed_descriptors:
                                 value = compute_column_value(descriptor, player, category_stats, toggle, fight_time)
-                                row += f" <span data-col-key='{descriptor.key}'>{value}</span>|"
+                                row += f" <span data-col-index='{column_index}'>{value}</span>|"
 
                         rows.append(row)
 
