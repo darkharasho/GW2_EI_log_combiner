@@ -31,25 +31,26 @@ tid_list = []
 HIDE_COLUMNS_STYLE_BLOCK = """<style class=\"gw2-hide-columns\">
 .col-toggle { position: relative; margin-bottom: 0.75em; }
 .col-dropdown { position: relative; display: inline-block; font-size: 0.9em; color: #eee; }
-.col-dropdown__button { appearance: none; background: #2c3034; color: inherit; border: 1px solid rgba(255,255,255,0.12); border-radius: 0.5em; padding: 0.45em 0.95em; display: inline-flex; align-items: center; gap: 0.5em; cursor: pointer; font: inherit; user-select: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); }
+.col-dropdown__button { display: inline-flex; align-items: center; gap: 0.55em; padding: 0.55em 1.05em; cursor: pointer; background: #2c3034; color: inherit; border: 1px solid rgba(255,255,255,0.12); border-radius: 0.6em; user-select: none; font: inherit; list-style: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); }
+.col-dropdown__button::-webkit-details-marker { display: none; }
 .col-dropdown__button:focus-visible { outline: 2px solid #6cf; outline-offset: 2px; }
-.col-dropdown__button .col-dropdown__chevron { transition: transform 0.2s ease; font-size: 0.8em; opacity: 0.8; }
-.col-dropdown[data-open=\"true\"] .col-dropdown__button { background: #363c41; }
-.col-dropdown[data-open=\"true\"] .col-dropdown__button .col-dropdown__chevron { transform: rotate(180deg); }
-.col-dropdown__menu { position: absolute; top: calc(100% + 0.35em); right: 0; background: #1f2326; border: 1px solid #444; border-radius: 0.6em; padding: 0.9em 1.1em; min-width: clamp(24em, 3vw + 26em, 38em); box-shadow: 0 0.75em 1.8em rgba(0,0,0,0.35); display: none; flex-direction: column; gap: 0.85em; z-index: 20; }
-.col-dropdown__menu[aria-hidden=\"false\"] { display: flex; }
-.col-dropdown__actions { display: flex; justify-content: flex-end; gap: 0.65em; }
-.col-dropdown__action { background: #2c3034; color: #eee; border: 1px solid #555; border-radius: 0.45em; padding: 0.4em 1.05em; cursor: pointer; transition: background 0.2s ease; font: inherit; }
+.col-dropdown__button .col-dropdown__chevron { transition: transform 0.2s ease; font-size: 0.85em; opacity: 0.8; }
+.col-dropdown[open] .col-dropdown__button { background: #363c41; }
+.col-dropdown[open] .col-dropdown__button .col-dropdown__chevron { transform: rotate(180deg); }
+.col-dropdown__menu { position: absolute; top: calc(100% + 0.35em); right: 0; background: #1f2326; border: 1px solid #444; border-radius: 0.6em; padding: 1em 1.2em; min-width: clamp(24em, 3vw + 26em, 38em); box-shadow: 0 0.75em 1.8em rgba(0,0,0,0.35); display: none; flex-direction: column; gap: 1em; z-index: 20; }
+.col-dropdown[open] .col-dropdown__menu { display: flex; }
+.col-dropdown__actions { display: flex; justify-content: flex-end; gap: 0.75em; }
+.col-dropdown__action { background: #2c3034; color: #eee; border: 1px solid #555; border-radius: 0.45em; padding: 0.45em 1.15em; cursor: pointer; transition: background 0.2s ease; font: inherit; }
 .col-dropdown__action:hover, .col-dropdown__action:focus-visible { background: #3a3f44; outline: none; }
-.col-controls { display: flex; flex-wrap: wrap; gap: 0.85em 1.2em; align-items: flex-start; }
-.col-controls label { display: inline-flex; align-items: center; gap: 0.6em; background: #2c3034; padding: 0.55em 1.2em; border-radius: 0.5em; cursor: pointer; transition: background 0.2s ease; white-space: nowrap; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
+.col-controls { display: flex; flex-wrap: wrap; gap: 0.95em 1.4em; align-items: flex-start; }
+.col-controls label { display: inline-flex; align-items: center; gap: 0.7em; background: #2c3034; padding: 0.65em 1.3em; border-radius: 0.5em; cursor: pointer; transition: background 0.2s ease; white-space: nowrap; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
 .col-controls label:hover { background: #3b4045; }
-.col-controls input[type=\"checkbox\"] { accent-color: #6cf; width: 1.05em; height: 1.05em; }
+.col-controls input[type="checkbox"] { accent-color: #6cf; width: 1.1em; height: 1.1em; }
 .col-toggletables { width: 100%; }
 </style>"""
 
 
-HIDE_COLUMNS_SCRIPT_BLOCK = """<script>(function(){
+HIDE_COLUMNS_SCRIPT_BLOCK = """<script type=\"application/javascript\">(function(){
   'use strict';
 
   if (window.gw2HideColumnsInit) {
@@ -60,6 +61,36 @@ HIDE_COLUMNS_SCRIPT_BLOCK = """<script>(function(){
   function closestWrapper(node) {
     while (node && node !== document) {
       if (node.classList && node.classList.contains('col-toggle')) {
+        return node;
+      }
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  function findAction(node) {
+    while (node && node !== document) {
+      if (node.nodeType === 1 && node.classList && node.classList.contains('col-dropdown__action') && node.getAttribute('data-col-action')) {
+        return node;
+      }
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  function findCheckbox(node) {
+    while (node && node !== document) {
+      if (node.nodeType === 1 && node.tagName && node.tagName.toLowerCase() === 'input' && node.type === 'checkbox' && node.hasAttribute('data-col-index')) {
+        return node;
+      }
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  function findDropdown(node) {
+    while (node && node !== document) {
+      if (node.nodeType === 1 && node.classList && node.classList.contains('col-dropdown')) {
         return node;
       }
       node = node.parentNode;
@@ -111,7 +142,7 @@ HIDE_COLUMNS_SCRIPT_BLOCK = """<script>(function(){
     if (!wrapper) {
       return;
     }
-    var boxes = wrapper.querySelectorAll('.col-dropdown input[type=\"checkbox\"][data-col-index]');
+    var boxes = wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]');
     for (var i = 0; i < boxes.length; i += 1) {
       var box = boxes[i];
       var index = parseIndex(box);
@@ -122,23 +153,18 @@ HIDE_COLUMNS_SCRIPT_BLOCK = """<script>(function(){
     }
   }
 
-  function toggleMenu(dropdown, open) {
-    if (!dropdown) {
+  function dispatchChange(element) {
+    if (!element) {
       return;
     }
-    dropdown.setAttribute('data-open', open ? 'true' : 'false');
-    var button = dropdown.querySelector('.col-dropdown__button');
-    if (button) {
-      button.setAttribute('aria-expanded', open ? 'true' : 'false');
-    }
-    var menu = dropdown.querySelector('.col-dropdown__menu');
-    if (menu) {
-      if (open) {
-        menu.removeAttribute('hidden');
-        menu.setAttribute('aria-hidden', 'false');
-      } else {
-        menu.setAttribute('hidden', '');
-        menu.setAttribute('aria-hidden', 'true');
+    try {
+      var evt = new Event('change', { bubbles: true });
+      element.dispatchEvent(evt);
+    } catch (error) {
+      if (typeof document.createEvent === 'function') {
+        var legacy = document.createEvent('Event');
+        legacy.initEvent('change', true, false);
+        element.dispatchEvent(legacy);
       }
     }
   }
@@ -148,64 +174,40 @@ HIDE_COLUMNS_SCRIPT_BLOCK = """<script>(function(){
       return;
     }
     wrapper.__gw2HideColumnsReady = true;
-    var dropdown = wrapper.querySelector('.col-dropdown');
-    if (dropdown && !dropdown.getAttribute('data-open')) {
-      toggleMenu(dropdown, false);
-    }
     syncWrapper(wrapper);
   }
 
-  function closeOtherMenus(current) {
-    var dropdowns = document.querySelectorAll('.col-dropdown[data-open=\"true\"]');
-    for (var i = 0; i < dropdowns.length; i += 1) {
-      var dropdown = dropdowns[i];
-      if (current && dropdown === current) {
-        continue;
-      }
-      toggleMenu(dropdown, false);
+  function initAll() {
+    var wrappers = document.querySelectorAll('.col-toggle');
+    for (var i = 0; i < wrappers.length; i += 1) {
+      initWrapper(wrappers[i]);
     }
   }
 
   document.addEventListener('click', function(event) {
-    var button = event.target.closest('.col-dropdown__button');
-    if (button) {
-      var dropdown = button.closest('.col-dropdown');
-      if (!dropdown) {
-        return;
-      }
-      var isOpen = dropdown.getAttribute('data-open') === 'true';
-      closeOtherMenus(dropdown);
-      toggleMenu(dropdown, !isOpen);
+    var action = findAction(event.target || event.srcElement);
+    if (!action) {
       return;
     }
-
-    var action = event.target.closest('.col-dropdown__action[data-col-action]');
-    if (action) {
-      event.preventDefault();
-      var wrapper = closestWrapper(action);
-      if (!wrapper) {
-        return;
-      }
-      var shouldCheck = action.getAttribute('data-col-action') === 'select';
-      var boxes = wrapper.querySelectorAll('.col-dropdown input[type=\"checkbox\"][data-col-index]');
-      for (var b = 0; b < boxes.length; b += 1) {
-        var box = boxes[b];
-        if (!!box.checked !== shouldCheck) {
-          box.checked = shouldCheck;
-          box.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      }
+    event.preventDefault();
+    var wrapper = closestWrapper(action);
+    if (!wrapper) {
       return;
     }
-
-    if (!event.target.closest('.col-dropdown')) {
-      closeOtherMenus(null);
+    var shouldCheck = action.getAttribute('data-col-action') === 'select';
+    var boxes = wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]');
+    for (var i = 0; i < boxes.length; i += 1) {
+      var box = boxes[i];
+      if (!!box.checked !== shouldCheck) {
+        box.checked = shouldCheck;
+        dispatchChange(box);
+      }
     }
   });
 
   document.addEventListener('change', function(event) {
-    var checkbox = event.target.closest('input[type=\"checkbox\"][data-col-index]');
-    if (!checkbox || !checkbox.closest('.col-dropdown')) {
+    var checkbox = findCheckbox(event.target || event.srcElement);
+    if (!checkbox || !findDropdown(checkbox)) {
       return;
     }
     var wrapper = closestWrapper(checkbox);
@@ -220,17 +222,9 @@ HIDE_COLUMNS_SCRIPT_BLOCK = """<script>(function(){
   });
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-      var wrappers = document.querySelectorAll('.col-toggle');
-      for (var i = 0; i < wrappers.length; i += 1) {
-        initWrapper(wrappers[i]);
-      }
-    });
+    document.addEventListener('DOMContentLoaded', initAll);
   } else {
-    var wrappersNow = document.querySelectorAll('.col-toggle');
-    for (var j = 0; j < wrappersNow.length; j += 1) {
-      initWrapper(wrappersNow[j]);
-    }
+    initAll();
   }
 
   var observerTarget = document.documentElement || document.body;
@@ -870,9 +864,9 @@ def build_category_summary_table(top_stats: dict, category_stats: dict, enable_h
 
 		if column_control_list:
 			hide_controls = [
-				"<div class=\"col-dropdown\" data-open=\"false\">"
-				"<button type=\"button\" class=\"col-dropdown__button\" aria-haspopup=\"true\" aria-expanded=\"false\">Hide Columns <span class=\"col-dropdown__chevron\" aria-hidden=\"true\">▾</span></button>"
-				"<div class=\"col-dropdown__menu\" aria-hidden=\"true\" hidden>"
+				"<details class=\"col-dropdown\">"
+				"<summary class=\"col-dropdown__button\">Hide Columns <span class=\"col-dropdown__chevron\" aria-hidden=\"true\">▾</span></summary>"
+				"<div class=\"col-dropdown__menu\">"
 				"<div class=\"col-dropdown__actions\">"
 				"<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"select\">Select all</button>"
 				"<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"clear\">Clear all</button>"
@@ -887,7 +881,7 @@ def build_category_summary_table(top_stats: dict, category_stats: dict, enable_h
 			hide_controls.extend([
 				"</div>"
 				"</div>"
-				"</div>"
+				"</details>"
 			])
 			rows.append("\n".join(hide_controls))
 

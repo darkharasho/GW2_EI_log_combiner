@@ -25,6 +25,36 @@ type: application/javascript
         return null;
     }
 
+    function findAction(node) {
+        while (node && node !== document) {
+            if (node.nodeType === 1 && node.classList && node.classList.contains('col-dropdown__action') && node.getAttribute('data-col-action')) {
+                return node;
+            }
+            node = node.parentNode;
+        }
+        return null;
+    }
+
+    function findCheckbox(node) {
+        while (node && node !== document) {
+            if (node.nodeType === 1 && node.tagName && node.tagName.toLowerCase() === 'input' && node.type === 'checkbox' && node.hasAttribute('data-col-index')) {
+                return node;
+            }
+            node = node.parentNode;
+        }
+        return null;
+    }
+
+    function findDropdown(node) {
+        while (node && node !== document) {
+            if (node.nodeType === 1 && node.classList && node.classList.contains('col-dropdown')) {
+                return node;
+            }
+            node = node.parentNode;
+        }
+        return null;
+    }
+
     function parseIndex(element) {
         if (!element) {
             return null;
@@ -80,23 +110,18 @@ type: application/javascript
         }
     }
 
-    function toggleMenu(dropdown, open) {
-        if (!dropdown) {
+    function dispatchChange(element) {
+        if (!element) {
             return;
         }
-        dropdown.setAttribute('data-open', open ? 'true' : 'false');
-        var button = dropdown.querySelector('.col-dropdown__button');
-        if (button) {
-            button.setAttribute('aria-expanded', open ? 'true' : 'false');
-        }
-        var menu = dropdown.querySelector('.col-dropdown__menu');
-        if (menu) {
-            if (open) {
-                menu.removeAttribute('hidden');
-                menu.setAttribute('aria-hidden', 'false');
-            } else {
-                menu.setAttribute('hidden', '');
-                menu.setAttribute('aria-hidden', 'true');
+        try {
+            var evt = new Event('change', { bubbles: true });
+            element.dispatchEvent(evt);
+        } catch (error) {
+            if (typeof document.createEvent === 'function') {
+                var legacy = document.createEvent('Event');
+                legacy.initEvent('change', true, false);
+                element.dispatchEvent(legacy);
             }
         }
     }
@@ -106,64 +131,40 @@ type: application/javascript
             return;
         }
         wrapper.__gw2HideColumnsReady = true;
-        var dropdown = wrapper.querySelector('.col-dropdown');
-        if (dropdown && !dropdown.getAttribute('data-open')) {
-            toggleMenu(dropdown, false);
-        }
         syncWrapper(wrapper);
     }
 
-    function closeOtherMenus(current) {
-        var dropdowns = document.querySelectorAll('.col-dropdown[data-open="true"]');
-        for (var i = 0; i < dropdowns.length; i += 1) {
-            var dropdown = dropdowns[i];
-            if (current && dropdown === current) {
-                continue;
-            }
-            toggleMenu(dropdown, false);
+    function initAll() {
+        var wrappers = document.querySelectorAll('.col-toggle');
+        for (var i = 0; i < wrappers.length; i += 1) {
+            initWrapper(wrappers[i]);
         }
     }
 
     document.addEventListener('click', function(event) {
-        var button = event.target.closest('.col-dropdown__button');
-        if (button) {
-            var dropdown = button.closest('.col-dropdown');
-            if (!dropdown) {
-                return;
-            }
-            var isOpen = dropdown.getAttribute('data-open') === 'true';
-            closeOtherMenus(dropdown);
-            toggleMenu(dropdown, !isOpen);
+        var action = findAction(event.target || event.srcElement);
+        if (!action) {
             return;
         }
-
-        var action = event.target.closest('.col-dropdown__action[data-col-action]');
-        if (action) {
-            event.preventDefault();
-            var wrapper = closestWrapper(action);
-            if (!wrapper) {
-                return;
-            }
-            var shouldCheck = action.getAttribute('data-col-action') === 'select';
-            var boxes = wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]');
-            for (var b = 0; b < boxes.length; b += 1) {
-                var box = boxes[b];
-                if (!!box.checked !== shouldCheck) {
-                    box.checked = shouldCheck;
-                    box.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            }
+        event.preventDefault();
+        var wrapper = closestWrapper(action);
+        if (!wrapper) {
             return;
         }
-
-        if (!event.target.closest('.col-dropdown')) {
-            closeOtherMenus(null);
+        var shouldCheck = action.getAttribute('data-col-action') === 'select';
+        var boxes = wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]');
+        for (var i = 0; i < boxes.length; i += 1) {
+            var box = boxes[i];
+            if (!!box.checked !== shouldCheck) {
+                box.checked = shouldCheck;
+                dispatchChange(box);
+            }
         }
     });
 
     document.addEventListener('change', function(event) {
-        var checkbox = event.target.closest('input[type="checkbox"][data-col-index]');
-        if (!checkbox || !checkbox.closest('.col-dropdown')) {
+        var checkbox = findCheckbox(event.target || event.srcElement);
+        if (!checkbox || !findDropdown(checkbox)) {
             return;
         }
         var wrapper = closestWrapper(checkbox);
@@ -178,17 +179,9 @@ type: application/javascript
     });
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-            var wrappers = document.querySelectorAll('.col-toggle');
-            for (var i = 0; i < wrappers.length; i += 1) {
-                initWrapper(wrappers[i]);
-            }
-        });
+        document.addEventListener('DOMContentLoaded', initAll);
     } else {
-        var wrappersNow = document.querySelectorAll('.col-toggle');
-        for (var j = 0; j < wrappersNow.length; j += 1) {
-            initWrapper(wrappersNow[j]);
-        }
+        initAll();
     }
 
     var observerTarget = document.documentElement || document.body;
