@@ -10,114 +10,209 @@ type: application/javascript
 (function(){
     'use strict';
 
-    function getWrapper(element) {
-        return element.closest ? element.closest('.col-toggle') : null;
+    if (window.gw2HideColumnsInit) {
+        return;
+    }
+    window.gw2HideColumnsInit = true;
+
+    function closestWrapper(node) {
+        while (node && node !== document) {
+            if (node.classList && node.classList.contains('col-toggle')) {
+                return node;
+            }
+            node = node.parentNode;
+        }
+        return null;
+    }
+
+    function parseIndex(element) {
+        if (!element) {
+            return null;
+        }
+        var raw = element.getAttribute('data-col-index');
+        if (raw === null) {
+            return null;
+        }
+        var value = parseInt(raw, 10);
+        return isNaN(value) ? null : value;
     }
 
     function getTableRows(wrapper) {
         if (!wrapper) {
             return [];
         }
-        const container = wrapper.querySelector('.col-toggletables');
+        var container = wrapper.querySelector('.col-toggletables');
         if (!container) {
             return [];
         }
-        return Array.from(container.querySelectorAll('tr'));
+        return container.querySelectorAll('tr');
     }
 
-    function updateColumnVisibility(wrapper, index, isVisible) {
-        if (!wrapper || !index) {
+    function applyVisibility(wrapper, index, isVisible) {
+        if (!wrapper || index === null) {
             return;
         }
-        getTableRows(wrapper).forEach(function(row) {
-            const cell = row.children[index - 1];
+        var rows = getTableRows(wrapper);
+        for (var r = 0; r < rows.length; r += 1) {
+            var row = rows[r];
+            if (!row || !row.children || index >= row.children.length) {
+                continue;
+            }
+            var cell = row.children[index];
             if (cell) {
                 cell.style.display = isVisible ? '' : 'none';
             }
-        });
+        }
     }
 
     function syncWrapper(wrapper) {
-        if (!wrapper || !wrapper.querySelector('.col-dropdown')) {
-            return;
-        }
-        wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]').forEach(function(box) {
-            const index = Number(box.getAttribute('data-col-index'));
-            if (!Number.isNaN(index)) {
-                updateColumnVisibility(wrapper, index, box.checked);
-            }
-        });
-    }
-
-    function handleCheckboxChange(event) {
-        const checkbox = event.target;
-        if (!(checkbox instanceof HTMLInputElement)) {
-            return;
-        }
-        if (!checkbox.matches('input[type="checkbox"][data-col-index]')) {
-            return;
-        }
-        if (!checkbox.closest('.col-dropdown')) {
-            return;
-        }
-        const wrapper = getWrapper(checkbox);
         if (!wrapper) {
             return;
         }
-        const index = Number(checkbox.getAttribute('data-col-index'));
-        if (Number.isNaN(index)) {
-            return;
+        var boxes = wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]');
+        for (var i = 0; i < boxes.length; i += 1) {
+            var box = boxes[i];
+            var index = parseIndex(box);
+            if (index === null) {
+                continue;
+            }
+            applyVisibility(wrapper, index, !!box.checked);
         }
-        updateColumnVisibility(wrapper, index, checkbox.checked);
     }
 
-    function handleActionClick(event) {
-        const button = event.target.closest('.col-dropdown__action[data-col-action]');
-        if (!button) {
+    function toggleMenu(dropdown, open) {
+        if (!dropdown) {
             return;
         }
-        event.preventDefault();
-        const wrapper = getWrapper(button);
+        dropdown.setAttribute('data-open', open ? 'true' : 'false');
+        var button = dropdown.querySelector('.col-dropdown__button');
+        if (button) {
+            button.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+        var menu = dropdown.querySelector('.col-dropdown__menu');
+        if (menu) {
+            if (open) {
+                menu.removeAttribute('hidden');
+                menu.setAttribute('aria-hidden', 'false');
+            } else {
+                menu.setAttribute('hidden', '');
+                menu.setAttribute('aria-hidden', 'true');
+            }
+        }
+    }
+
+    function initWrapper(wrapper) {
+        if (!wrapper || wrapper.__gw2HideColumnsReady) {
+            return;
+        }
+        wrapper.__gw2HideColumnsReady = true;
+        var dropdown = wrapper.querySelector('.col-dropdown');
+        if (dropdown && !dropdown.getAttribute('data-open')) {
+            toggleMenu(dropdown, false);
+        }
+        syncWrapper(wrapper);
+    }
+
+    function closeOtherMenus(current) {
+        var dropdowns = document.querySelectorAll('.col-dropdown[data-open="true"]');
+        for (var i = 0; i < dropdowns.length; i += 1) {
+            var dropdown = dropdowns[i];
+            if (current && dropdown === current) {
+                continue;
+            }
+            toggleMenu(dropdown, false);
+        }
+    }
+
+    document.addEventListener('click', function(event) {
+        var button = event.target.closest('.col-dropdown__button');
+        if (button) {
+            var dropdown = button.closest('.col-dropdown');
+            if (!dropdown) {
+                return;
+            }
+            var isOpen = dropdown.getAttribute('data-open') === 'true';
+            closeOtherMenus(dropdown);
+            toggleMenu(dropdown, !isOpen);
+            return;
+        }
+
+        var action = event.target.closest('.col-dropdown__action[data-col-action]');
+        if (action) {
+            event.preventDefault();
+            var wrapper = closestWrapper(action);
+            if (!wrapper) {
+                return;
+            }
+            var shouldCheck = action.getAttribute('data-col-action') === 'select';
+            var boxes = wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]');
+            for (var b = 0; b < boxes.length; b += 1) {
+                var box = boxes[b];
+                if (!!box.checked !== shouldCheck) {
+                    box.checked = shouldCheck;
+                    box.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+            return;
+        }
+
+        if (!event.target.closest('.col-dropdown')) {
+            closeOtherMenus(null);
+        }
+    });
+
+    document.addEventListener('change', function(event) {
+        var checkbox = event.target.closest('input[type="checkbox"][data-col-index]');
+        if (!checkbox || !checkbox.closest('.col-dropdown')) {
+            return;
+        }
+        var wrapper = closestWrapper(checkbox);
         if (!wrapper) {
             return;
         }
-        const shouldCheck = button.getAttribute('data-col-action') === 'select';
-        wrapper.querySelectorAll('.col-dropdown input[type="checkbox"][data-col-index]').forEach(function(box) {
-            if (box.checked !== shouldCheck) {
-                box.checked = shouldCheck;
-                box.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        });
-    }
-
-    function initExisting(root) {
-        (root || document).querySelectorAll('.col-toggle').forEach(syncWrapper);
-    }
-
-    document.addEventListener('change', handleCheckboxChange);
-    document.addEventListener('click', handleActionClick);
+        var index = parseIndex(checkbox);
+        if (index === null) {
+            return;
+        }
+        applyVisibility(wrapper, index, !!checkbox.checked);
+    });
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
-            initExisting(document);
+            var wrappers = document.querySelectorAll('.col-toggle');
+            for (var i = 0; i < wrappers.length; i += 1) {
+                initWrapper(wrappers[i]);
+            }
         });
     } else {
-        initExisting(document);
+        var wrappersNow = document.querySelectorAll('.col-toggle');
+        for (var j = 0; j < wrappersNow.length; j += 1) {
+            initWrapper(wrappersNow[j]);
+        }
     }
 
-    new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
-            mutation.addedNodes.forEach(function(node) {
-                if (!(node instanceof Element)) {
-                    return;
+    var observerTarget = document.documentElement || document.body;
+    if (observerTarget && observerTarget.ownerDocument) {
+        new MutationObserver(function(mutations) {
+            for (var m = 0; m < mutations.length; m += 1) {
+                var mutation = mutations[m];
+                var added = mutation.addedNodes;
+                for (var a = 0; a < added.length; a += 1) {
+                    var node = added[a];
+                    if (!node || node.nodeType !== 1) {
+                        continue;
+                    }
+                    if (node.classList && node.classList.contains('col-toggle')) {
+                        initWrapper(node);
+                    } else if (node.querySelectorAll) {
+                        var wrappers = node.querySelectorAll('.col-toggle');
+                        for (var w = 0; w < wrappers.length; w += 1) {
+                            initWrapper(wrappers[w]);
+                        }
+                    }
                 }
-                if (node.matches && node.matches('.col-toggle')) {
-                    syncWrapper(node);
-                } else if (node.querySelectorAll) {
-                    node.querySelectorAll('.col-toggle').forEach(syncWrapper);
-                }
-            });
-        });
-    }).observe(document.documentElement, { childList: true, subtree: true });
+            }
+        }).observe(observerTarget, { childList: true, subtree: true });
+    }
 })();
 </script>

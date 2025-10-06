@@ -17,6 +17,7 @@ import config
 import json
 #import os
 import re
+import html
 import requests
 import sqlite3
 import xlsxwriter
@@ -30,19 +31,21 @@ tid_list = []
 HIDE_COLUMNS_STYLE_BLOCK = """<style class=\"gw2-hide-columns\">
 .col-toggle { position: relative; margin-bottom: 0.75em; }
 .col-dropdown { position: relative; display: inline-block; font-size: 0.9em; color: #eee; }
-.col-dropdown__summary { list-style: none; cursor: pointer; background: #2c3034; padding: 0.45em 0.95em; border-radius: 0.5em; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); display: inline-flex; align-items: center; gap: 0.5em; user-select: none; }
-.col-dropdown__summary::-webkit-details-marker { display: none; }
-.col-dropdown__summary::after { content: \"▾\"; font-size: 0.8em; opacity: 0.8; }
-.col-dropdown[open] .col-dropdown__summary { background: #363c41; }
-.col-dropdown[open] .col-dropdown__summary::after { content: \"▴\"; }
-.col-dropdown__menu { position: absolute; top: calc(100% + 0.35em); right: 0; background: #1f2326; border: 1px solid #444; border-radius: 0.6em; padding: 0.85em 1em; min-width: 22em; box-shadow: 0 0.75em 1.8em rgba(0,0,0,0.35); display: flex; flex-direction: column; gap: 0.9em; z-index: 20; }
-.col-dropdown__actions { display: flex; justify-content: flex-end; gap: 0.6em; }
-.col-dropdown__action { background: #2c3034; color: #eee; border: 1px solid #555; border-radius: 0.45em; padding: 0.35em 1em; cursor: pointer; transition: background 0.2s ease; }
+.col-dropdown__button { appearance: none; background: #2c3034; color: inherit; border: 1px solid rgba(255,255,255,0.12); border-radius: 0.5em; padding: 0.45em 0.95em; display: inline-flex; align-items: center; gap: 0.5em; cursor: pointer; font: inherit; user-select: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); }
+.col-dropdown__button:focus-visible { outline: 2px solid #6cf; outline-offset: 2px; }
+.col-dropdown__button .col-dropdown__chevron { transition: transform 0.2s ease; font-size: 0.8em; opacity: 0.8; }
+.col-dropdown[data-open=\"true\"] .col-dropdown__button { background: #363c41; }
+.col-dropdown[data-open=\"true\"] .col-dropdown__button .col-dropdown__chevron { transform: rotate(180deg); }
+.col-dropdown__menu { position: absolute; top: calc(100% + 0.35em); right: 0; background: #1f2326; border: 1px solid #444; border-radius: 0.6em; padding: 0.9em 1.1em; min-width: clamp(24em, 3vw + 26em, 38em); box-shadow: 0 0.75em 1.8em rgba(0,0,0,0.35); display: none; flex-direction: column; gap: 0.85em; z-index: 20; }
+.col-dropdown__menu[aria-hidden=\"false\"] { display: flex; }
+.col-dropdown__actions { display: flex; justify-content: flex-end; gap: 0.65em; }
+.col-dropdown__action { background: #2c3034; color: #eee; border: 1px solid #555; border-radius: 0.45em; padding: 0.4em 1.05em; cursor: pointer; transition: background 0.2s ease; font: inherit; }
 .col-dropdown__action:hover, .col-dropdown__action:focus-visible { background: #3a3f44; outline: none; }
-.col-controls { display: flex; flex-wrap: wrap; gap: 0.75em 1.05em; }
-.col-controls label { display: inline-flex; align-items: center; gap: 0.55em; background: #2c3034; padding: 0.5em 1.15em; border-radius: 0.5em; cursor: pointer; transition: background 0.2s ease; white-space: nowrap; }
+.col-controls { display: flex; flex-wrap: wrap; gap: 0.85em 1.2em; align-items: flex-start; }
+.col-controls label { display: inline-flex; align-items: center; gap: 0.6em; background: #2c3034; padding: 0.55em 1.2em; border-radius: 0.5em; cursor: pointer; transition: background 0.2s ease; white-space: nowrap; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
 .col-controls label:hover { background: #3b4045; }
-.col-controls input[type=\"checkbox\"] { accent-color: #6cf; }
+.col-controls input[type=\"checkbox\"] { accent-color: #6cf; width: 1.05em; height: 1.05em; }
+.col-toggletables { width: 100%; }
 </style>"""
 
 
@@ -64,17 +67,6 @@ HIDE_COLUMNS_SCRIPT_BLOCK = """<script>(function(){
     return null;
   }
 
-  function getTableRows(wrapper) {
-    if (!wrapper) {
-      return [];
-    }
-    var container = wrapper.querySelector('.col-toggletables');
-    if (!container) {
-      return [];
-    }
-    return container.querySelectorAll('tr');
-  }
-
   function parseIndex(element) {
     if (!element) {
       return null;
@@ -87,8 +79,19 @@ HIDE_COLUMNS_SCRIPT_BLOCK = """<script>(function(){
     return isNaN(value) ? null : value;
   }
 
+  function getTableRows(wrapper) {
+    if (!wrapper) {
+      return [];
+    }
+    var container = wrapper.querySelector('.col-toggletables');
+    if (!container) {
+      return [];
+    }
+    return container.querySelectorAll('tr');
+  }
+
   function applyVisibility(wrapper, index, isVisible) {
-    if (wrapper === null || index === null) {
+    if (!wrapper || index === null) {
       return;
     }
     var rows = getTableRows(wrapper);
@@ -119,81 +122,115 @@ HIDE_COLUMNS_SCRIPT_BLOCK = """<script>(function(){
     }
   }
 
-  function setChecked(wrapper, input, value) {
-    if (!input) {
+  function toggleMenu(dropdown, open) {
+    if (!dropdown) {
       return;
     }
-    input.checked = value;
-    var index = parseIndex(input);
+    dropdown.setAttribute('data-open', open ? 'true' : 'false');
+    var button = dropdown.querySelector('.col-dropdown__button');
+    if (button) {
+      button.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    var menu = dropdown.querySelector('.col-dropdown__menu');
+    if (menu) {
+      if (open) {
+        menu.removeAttribute('hidden');
+        menu.setAttribute('aria-hidden', 'false');
+      } else {
+        menu.setAttribute('hidden', '');
+        menu.setAttribute('aria-hidden', 'true');
+      }
+    }
+  }
+
+  function initWrapper(wrapper) {
+    if (!wrapper || wrapper.__gw2HideColumnsReady) {
+      return;
+    }
+    wrapper.__gw2HideColumnsReady = true;
+    var dropdown = wrapper.querySelector('.col-dropdown');
+    if (dropdown && !dropdown.getAttribute('data-open')) {
+      toggleMenu(dropdown, false);
+    }
+    syncWrapper(wrapper);
+  }
+
+  function closeOtherMenus(current) {
+    var dropdowns = document.querySelectorAll('.col-dropdown[data-open=\"true\"]');
+    for (var i = 0; i < dropdowns.length; i += 1) {
+      var dropdown = dropdowns[i];
+      if (current && dropdown === current) {
+        continue;
+      }
+      toggleMenu(dropdown, false);
+    }
+  }
+
+  document.addEventListener('click', function(event) {
+    var button = event.target.closest('.col-dropdown__button');
+    if (button) {
+      var dropdown = button.closest('.col-dropdown');
+      if (!dropdown) {
+        return;
+      }
+      var isOpen = dropdown.getAttribute('data-open') === 'true';
+      closeOtherMenus(dropdown);
+      toggleMenu(dropdown, !isOpen);
+      return;
+    }
+
+    var action = event.target.closest('.col-dropdown__action[data-col-action]');
+    if (action) {
+      event.preventDefault();
+      var wrapper = closestWrapper(action);
+      if (!wrapper) {
+        return;
+      }
+      var shouldCheck = action.getAttribute('data-col-action') === 'select';
+      var boxes = wrapper.querySelectorAll('.col-dropdown input[type=\"checkbox\"][data-col-index]');
+      for (var b = 0; b < boxes.length; b += 1) {
+        var box = boxes[b];
+        if (!!box.checked !== shouldCheck) {
+          box.checked = shouldCheck;
+          box.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+      return;
+    }
+
+    if (!event.target.closest('.col-dropdown')) {
+      closeOtherMenus(null);
+    }
+  });
+
+  document.addEventListener('change', function(event) {
+    var checkbox = event.target.closest('input[type=\"checkbox\"][data-col-index]');
+    if (!checkbox || !checkbox.closest('.col-dropdown')) {
+      return;
+    }
+    var wrapper = closestWrapper(checkbox);
+    if (!wrapper) {
+      return;
+    }
+    var index = parseIndex(checkbox);
     if (index === null) {
       return;
     }
-    applyVisibility(wrapper, index, value);
-  }
-
-  function toggleAll(wrapper, selectAll) {
-    if (!wrapper) {
-      return;
-    }
-    var boxes = wrapper.querySelectorAll('.col-dropdown input[type=\"checkbox\"][data-col-index]');
-    for (var i = 0; i < boxes.length; i += 1) {
-      setChecked(wrapper, boxes[i], selectAll);
-    }
-  }
-
-  function handleCheckboxChange(event) {
-    var target = event.target;
-    if (!target || target.tagName !== 'INPUT' || target.type !== 'checkbox') {
-      return;
-    }
-    if (!target.hasAttribute('data-col-index')) {
-      return;
-    }
-    var wrapper = closestWrapper(target);
-    if (!wrapper) {
-      return;
-    }
-    var index = parseIndex(target);
-    if (index === null) {
-      return;
-    }
-    applyVisibility(wrapper, index, !!target.checked);
-  }
-
-  function handleActionClick(event) {
-    var button = event.target;
-    while (button && button !== document && (!button.dataset || !button.dataset.colAction)) {
-      button = button.parentNode;
-    }
-    if (!button || !button.dataset) {
-      return;
-    }
-    var wrapper = closestWrapper(button);
-    if (!wrapper) {
-      return;
-    }
-    event.preventDefault();
-    toggleAll(wrapper, button.dataset.colAction === 'select');
-  }
-
-  function initExisting(root) {
-    var nodes = (root || document).querySelectorAll('.col-toggle');
-    for (var i = 0; i < nodes.length; i += 1) {
-      syncWrapper(nodes[i]);
-    }
-  }
-
-  document.addEventListener('change', handleCheckboxChange, true);
-  document.addEventListener('click', handleActionClick, true);
+    applyVisibility(wrapper, index, !!checkbox.checked);
+  });
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
-      initExisting(document);
+      var wrappers = document.querySelectorAll('.col-toggle');
+      for (var i = 0; i < wrappers.length; i += 1) {
+        initWrapper(wrappers[i]);
+      }
     });
   } else {
-    setTimeout(function() {
-      initExisting(document);
-    }, 0);
+    var wrappersNow = document.querySelectorAll('.col-toggle');
+    for (var j = 0; j < wrappersNow.length; j += 1) {
+      initWrapper(wrappersNow[j]);
+    }
   }
 
   var observerTarget = document.documentElement || document.body;
@@ -208,27 +245,19 @@ HIDE_COLUMNS_SCRIPT_BLOCK = """<script>(function(){
             continue;
           }
           if (node.classList && node.classList.contains('col-toggle')) {
-            syncWrapper(node);
+            initWrapper(node);
           } else if (node.querySelectorAll) {
             var wrappers = node.querySelectorAll('.col-toggle');
             for (var w = 0; w < wrappers.length; w += 1) {
-              syncWrapper(wrappers[w]);
+              initWrapper(wrappers[w]);
             }
           }
         }
       }
     }).observe(observerTarget, { childList: true, subtree: true });
   }
-
-  window.gw2HideColumnsToggleAll = function(trigger, selectAll) {
-    var wrapper = closestWrapper(trigger);
-    if (!wrapper) {
-      return false;
-    }
-    toggleAll(wrapper, !!selectAll);
-    return false;
-  };
 })();</script>"""
+
 
 
 
@@ -259,8 +288,15 @@ def render_column_label(stat: str) -> str:
                 return f"<$transclude tiddler=\"{name}\"/>" if name else ''
 
         label = re.sub(r"\[img(?:\\s+width=(\\d+))?\\s+\[(.*?)\|(.*?)\]\]", replace_image, stat)
-        label = re.sub(r"\{\{([^{}]+)\}\}", replace_transclude, label)
-        return label
+        converted = re.sub(r"\{\{([^{}]+)\}\}", replace_transclude, label)
+
+        if converted == stat or not converted.strip():
+                plain = re.sub(r"\{\{([^{}]+)\}\}", r"\1", stat)
+                plain = re.sub(r"\[img(?:\\s+width=(\\d+))?\\s+\[(.*?)\|(.*?)\]\]", r"\2", plain)
+                plain = re.sub(r"[\[\]]", "", plain)
+                converted = html.escape(plain.strip() or "Column")
+
+        return converted
 
 
 def create_new_tid_from_template(
@@ -833,41 +869,25 @@ def build_category_summary_table(top_stats: dict, category_stats: dict, enable_h
 				column_control_list.append(f"{{{{{stat}}}}}")
 
 		if column_control_list:
-			menu_style = (
-				"position:absolute; top:calc(100% + 0.35em); right:0; background:#1f2326; border:1px solid #444; "
-				"border-radius:0.6em; padding:0.85em 1em; min-width:22em; box-shadow:0 0.75em 1.8em rgba(0,0,0,0.35); "
-				"display:flex; flex-direction:column; gap:0.9em; z-index:20;"
-			)
-			actions_style = "display:flex; justify-content:flex-end; gap:0.6em;"
-			button_style = (
-				"background:#2c3034; color:#eee; border:1px solid #555; border-radius:0.45em; padding:0.35em 1em; "
-				"cursor:pointer; transition:background 0.2s ease;"
-			)
-			controls_style = "display:flex; flex-wrap:wrap; gap:0.75em 1.1em;"
-			label_style = (
-				"display:inline-flex; align-items:center; gap:0.55em; background:#2c3034; padding:0.5em 1.15em; "
-				"border-radius:0.5em; cursor:pointer; transition:background 0.2s ease; white-space:nowrap;"
-			)
-			checkbox_style = "accent-color:#6cf;"
 			hide_controls = [
-				"<details class=\"col-dropdown\">",
-				"<summary class=\"col-dropdown__summary\">Hide Columns</summary>",
-				f"<div class=\"col-dropdown__menu\" style=\"{menu_style}\">",
-				f"<div class=\"col-dropdown__actions\" style=\"{actions_style}\">",
-				f"<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"select\" style=\"{button_style}\">Select all</button>",
-				f"<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"clear\" style=\"{button_style}\">Clear all</button>",
-				"</div>",
-				f"<div class=\"col-controls\" style=\"{controls_style}\">",
+				"<div class=\"col-dropdown\" data-open=\"false\">"
+				"<button type=\"button\" class=\"col-dropdown__button\" aria-haspopup=\"true\" aria-expanded=\"false\">Hide Columns <span class=\"col-dropdown__chevron\" aria-hidden=\"true\">▾</span></button>"
+				"<div class=\"col-dropdown__menu\" aria-hidden=\"true\" hidden>"
+				"<div class=\"col-dropdown__actions\">"
+				"<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"select\">Select all</button>"
+				"<button type=\"button\" class=\"col-dropdown__action\" data-col-action=\"clear\">Clear all</button>"
+				"</div>"
+				"<div class=\"col-controls\">"
 			]
 			for column_index, stat in enumerate(column_control_list, start=4):
 				label_markup = render_column_label(stat)
 				hide_controls.append(
-					f"<label style=\"{label_style}\"><input type='checkbox' id='toggle-col{column_index}' data-col-index='{column_index}' checked style=\"{checkbox_style}\"> {label_markup}</label>"
+					f"<label><input type='checkbox' data-col-index='{column_index}' checked> {label_markup}</label>"
 				)
 			hide_controls.extend([
-				"</div>",
-				"</div>",
-				"</details>",
+				"</div>"
+				"</div>"
+				"</div>"
 			])
 			rows.append("\n".join(hide_controls))
 

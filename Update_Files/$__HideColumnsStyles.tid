@@ -7,114 +7,21 @@ tags: $:/tags/Stylesheet
 type: text/vnd.tiddlywiki
 
 <style>
-.col-toggle {
-  position: relative;
-  margin-bottom: 0.75em;
-}
-
-.col-dropdown {
-  position: relative;
-  display: inline-block;
-  font-size: 0.9em;
-  color: #eee;
-}
-
-.col-dropdown__summary {
-  list-style: none;
-  cursor: pointer;
-  background: #2c3034;
-  padding: 0.45em 0.95em;
-  border-radius: 0.5em;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5em;
-  user-select: none;
-}
-
-.col-dropdown__summary::-webkit-details-marker {
-  display: none;
-}
-
-.col-dropdown__summary::after {
-  content: "▾";
-  font-size: 0.8em;
-  opacity: 0.8;
-}
-
-.col-dropdown[open] .col-dropdown__summary {
-  background: #363c41;
-}
-
-.col-dropdown[open] .col-dropdown__summary::after {
-  content: "▴";
-}
-
-.col-dropdown__menu {
-  position: absolute;
-  top: calc(100% + 0.35em);
-  right: 0;
-  background: #1f2326;
-  border: 1px solid #444;
-  border-radius: 0.6em;
-  padding: 0.85em 1em;
-  min-width: clamp(22em, 3vw + 24em, 36em);
-  box-shadow: 0 0.75em 1.8em rgba(0, 0, 0, 0.35);
-  display: flex;
-  flex-direction: column;
-  gap: 0.75em;
-  z-index: 20;
-}
-
-.col-dropdown__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.6em;
-}
-
-.col-dropdown__action {
-  background: #2c3034;
-  color: #eee;
-  border: 1px solid #555;
-  border-radius: 0.45em;
-  padding: 0.35em 0.95em;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.col-dropdown__action:hover,
-.col-dropdown__action:focus-visible {
-  background: #3a3f44;
-  outline: none;
-}
-
-.col-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75em;
-}
-
-.col-controls label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55em;
-  background: #2c3034;
-  padding: 0.45em 1.05em;
-  border-radius: 0.5em;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  white-space: nowrap;
-}
-
-.col-controls label:hover {
-  background: #3b4045;
-}
-
-.col-controls input[type="checkbox"] {
-  accent-color: #6cf;
-}
-
-.col-toggletables {
-  width: 100%;
-}
+.col-toggle { position: relative; margin-bottom: 0.75em; }
+.col-dropdown { position: relative; display: inline-block; font-size: 0.9em; color: #eee; }
+.col-dropdown__button { appearance: none; background: #2c3034; color: inherit; border: 1px solid rgba(255,255,255,0.12); border-radius: 0.5em; padding: 0.45em 0.95em; display: inline-flex; align-items: center; gap: 0.5em; cursor: pointer; font: inherit; user-select: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); }
+.col-dropdown__button:focus-visible { outline: 2px solid #6cf; outline-offset: 2px; }
+.col-dropdown__button .col-dropdown__chevron { transition: transform 0.2s ease; font-size: 0.8em; opacity: 0.8; }
+.col-dropdown[data-open="true"] .col-dropdown__button { background: #363c41; }
+.col-dropdown[data-open="true"] .col-dropdown__button .col-dropdown__chevron { transform: rotate(180deg); }
+.col-dropdown__menu { position: absolute; top: calc(100% + 0.35em); right: 0; background: #1f2326; border: 1px solid #444; border-radius: 0.6em; padding: 0.9em 1.1em; min-width: clamp(24em, 3vw + 26em, 38em); box-shadow: 0 0.75em 1.8em rgba(0,0,0,0.35); display: none; flex-direction: column; gap: 0.85em; z-index: 20; }
+.col-dropdown__menu[aria-hidden="false"] { display: flex; }
+.col-dropdown__actions { display: flex; justify-content: flex-end; gap: 0.65em; }
+.col-dropdown__action { background: #2c3034; color: #eee; border: 1px solid #555; border-radius: 0.45em; padding: 0.4em 1.05em; cursor: pointer; transition: background 0.2s ease; font: inherit; }
+.col-dropdown__action:hover, .col-dropdown__action:focus-visible { background: #3a3f44; outline: none; }
+.col-controls { display: flex; flex-wrap: wrap; gap: 0.85em 1.2em; align-items: flex-start; }
+.col-controls label { display: inline-flex; align-items: center; gap: 0.6em; background: #2c3034; padding: 0.55em 1.2em; border-radius: 0.5em; cursor: pointer; transition: background 0.2s ease; white-space: nowrap; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05); }
+.col-controls label:hover { background: #3b4045; }
+.col-controls input[type="checkbox"] { accent-color: #6cf; width: 1.05em; height: 1.05em; }
+.col-toggletables { width: 100%; }
 </style>
